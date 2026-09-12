@@ -1,0 +1,70 @@
+{{/*
+  Root override of the theme's get-gallery.html.
+
+  Why it exists: the theme sizes the card thumbnail with `fit 600x600`, which fits the image's
+  LONG edge. The card constrains its WIDTH (max-width 600px), so every portrait painting came out
+  ~434px wide and was stretched to fill 600px — 23 of 46 images on this site. See
+  specs/006-image-resolution.
+
+  Sizing is therefore by width, and capped at the master so Hugo is never asked to upscale
+  either. Returns a `srcset` string so the card can offer a high-DPI candidate without forcing
+  it on every visitor.
+*/}}
+{{ $gallery := "" }}
+{{ $images := where (.Resources.ByType "image") "Params.hidden" "ne" true }}
+{{ if gt (len $images) 0 }}
+  {{ $covers := where (.Resources.ByType "image") "Params.cover" "eq" true }}
+  {{ $cover := "" }}
+  {{ if ge (len $covers) 0 }}
+    {{ $cover = index $covers 0 }}
+  {{ end }}
+  {{ $featured := $cover | default ((.Resources.ByType "image").GetMatch (.Params.featured_image | default "*feature*")) | default (index $images 0) }}
+
+  {{/* Orient first: a rotated master reports pre-rotation dimensions, which would pick the wrong widths. */}}
+  {{ $oriented := $featured.Filter images.AutoOrient }}
+
+  {{ $card := 600 }}
+  {{ $srcset := slice }}
+  {{ $thumbnail := "" }}
+  {{/* 400/600/900 and no 1200: the 1200w set measured 10.1 MB and pushed the site to 46 MB,
+       over the 40 MB budget (Constitution IV). 900w still covers a 2x phone (~92vw ≈ 720 CSS px),
+       which is where retina actually bites; a 2x desktop gets 900 into a 600px card, far better
+       than the 434 it used to get. Measured result: 36 MB. */}}
+  {{ range $w := (slice 400 600 900) }}
+    {{ if le $w $oriented.Width }}
+      {{ $v := $oriented.Resize (printf "%dx" $w) }}
+      {{ $srcset = $srcset | append (printf "%s %dw" $v.RelPermalink $v.Width) }}
+      {{ if eq $w $card }}{{ $thumbnail = $v }}{{ end }}
+    {{ end }}
+  {{ end }}
+
+  {{/* Master narrower than the card: serve it whole rather than upscaling. */}}
+  {{ if not $thumbnail }}
+    {{ $thumbnail = $oriented }}
+    {{ if lt (len $srcset) 1 }}
+      {{ $srcset = slice (printf "%s %dw" $oriented.RelPermalink $oriented.Width) }}
+    {{ end }}
+  {{ end }}
+
+  {{ $color := index $thumbnail.Colors 0 | default "transparent" }}
+  {{ $imageCount := 0 }}
+  {{ $albumCount := 0 }}
+  {{ if .IsPage }}
+    {{ $imageCount = len $images }}
+  {{ else }}
+    {{ range where .RegularPagesRecursive "Params.private" "ne" true }}
+      {{ $albumCount = add $albumCount 1 }}
+      {{ $imageCount = add $imageCount (len (where (.Resources.ByType "image") "Params.hidden" "ne" true)) }}
+    {{ end }}
+  {{ end }}
+  {{ $gallery = dict
+    "page" $
+    "images" $images
+    "thumbnail" $thumbnail
+    "srcset" (delimit $srcset ", ")
+    "color" $color
+    "albumCount" $albumCount
+    "imageCount" $imageCount
+  }}
+{{ end }}
+{{ return $gallery }}

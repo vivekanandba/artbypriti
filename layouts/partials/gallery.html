@@ -3,11 +3,25 @@
   <div class="gallery-single-image-wrapper">
     {{ $images := slice }}
     {{ range $image := where (.Resources.ByType "image") "Params.hidden" "ne" true }}
+      {{/* MEASURED, and it corrected an earlier assumption: on this page the figure
+           shrink-wraps (flex column, align-items:center), so the image renders at its
+           NATURAL width — it is never stretched. Sizing it by width would therefore not
+           sharpen anything; it would enlarge the painting and make pages 24-45% taller,
+           which is a design decision and not this change's to make (spec NFR-003).
+
+           So the displayed image is left exactly as it was, and the extra resolution is
+           offered only as a high-DPI candidate: `sizes` states the true CSS width, and the
+           1600px lightbox variant — which already exists — serves 2x screens at no extra
+           payload (spec FR-005). */}}
       {{ $thumbnail := $image.Filter (slice images.AutoOrient (images.Process "fit 1000x1000")) }}
       {{ $full := $image.Filter (slice images.AutoOrient (images.Process "fit 1600x1600")) }}
+      {{ $srcset := slice (printf "%s %dw" $thumbnail.RelPermalink $thumbnail.Width) }}
+      {{ if gt $full.Width $thumbnail.Width }}
+        {{ $srcset = $srcset | append (printf "%s %dw" $full.RelPermalink $full.Width) }}
+      {{ end }}
       <a class="gallery-item" href="{{ $full.RelPermalink }}" data-pswp-src="{{ $full.RelPermalink }}" data-pswp-width="{{ $full.Width }}" data-pswp-height="{{ $full.Height }}" data-pswp-caption="{{ $.Params.dimensions }}" title="{{ $.Title }}" itemscope itemtype="https://schema.org/ImageObject">
         <figure class="gallery-single-figure">
-          <img class="lazyload gallery-single-img" width="{{ $thumbnail.Width }}" height="{{ $thumbnail.Height }}" data-src="{{ $thumbnail.RelPermalink }}" alt="{{ $.Title }}" />
+          <img class="lazyload gallery-single-img" width="{{ $thumbnail.Width }}" height="{{ $thumbnail.Height }}" data-src="{{ $thumbnail.RelPermalink }}" data-srcset="{{ delimit $srcset `, ` }}" data-sizes="(max-width: {{ $thumbnail.Width }}px) 100vw, {{ $thumbnail.Width }}px" alt="{{ $.Title }}" />
         </figure>
       </a>
       {{ with $.Params.dimensions }}
