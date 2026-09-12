@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-# artbypriti gates — say what that merge changed underneath you. Never blocks.
-root="$(git rev-parse --show-toplevel)"
-"$root/scripts/post-merge-notes.sh" || true

@@ -6,8 +6,9 @@ one stylesheet, and two Python validators.
 
 ## Read these first
 
-- **[`.specify/memory/constitution.md`](.specify/memory/constitution.md)** — the project's
-  principles. Every one exists because something broke; they are not generic advice.
+- **[`.specify/memory/constitution.md`](.specify/memory/constitution.md)** — the *project* deltas
+  only: Hugo's silent fallback, the image budget, the live-site-is-a-portfolio rules. It cites the
+  house rules rather than repeating them.
 - **[`tests/README.md`](tests/README.md)** — the three gates, what each guards, and how to run
   them.
 - **[`specs/`](specs/)** — specifications for in-flight work. If a spec exists for what you are

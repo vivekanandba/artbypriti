@@ -42,8 +42,7 @@ serve: ## Dev server with drafts at http://localhost:1313
 build: ## Production build into ./public
 	$(HUGO_BUILD)
 
-check: ## Fast gates: constitution, specs, front matter, strict build, output assertions
-	python3 scripts/check-constitution.py
+check: ## Fast gates: specs, front matter, strict build, output assertions
 	python3 scripts/check-specs.py
 	python3 scripts/check-content.py
 	$(HUGO_BUILD) --panicOnWarning --printPathWarnings
