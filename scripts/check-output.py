@@ -112,6 +112,105 @@ def check_artwork_pages(built, artworks):
     notes.append(f"{len(artworks)} artwork pages checked")
 
 
+def image_size(path):
+    """Intrinsic pixel size of a JPEG/PNG, using the stdlib only.
+
+    check-output.py must run on a bare CI runner (NFR-004: no new dependency), so this reads
+    the header rather than importing Pillow. Returns (width, height) or None.
+    """
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(24)
+            if len(head) < 24:
+                return None
+            if head[:8] == b"\x89PNG\r\n\x1a\n":
+                return (int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big"))
+            if head[:2] != b"\xff\xd8":
+                return None
+            fh.seek(2)
+            while True:
+                b = fh.read(1)
+                while b and b != b"\xff":
+                    b = fh.read(1)
+                while b == b"\xff":
+                    b = fh.read(1)
+                if not b:
+                    return None
+                marker = b[0]
+                if marker in (0xD8, 0xD9) or 0xD0 <= marker <= 0xD7:
+                    continue
+                seg = fh.read(2)
+                if len(seg) < 2:
+                    return None
+                length = int.from_bytes(seg, "big")
+                # SOF0-SOF15, excluding the non-frame markers DHT/JPG/DAC
+                if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+                    data = fh.read(5)
+                    if len(data) < 5:
+                        return None
+                    return (int.from_bytes(data[3:5], "big"), int.from_bytes(data[1:3], "big"))
+                fh.seek(length - 2, 1)
+    except OSError:
+        return None
+
+
+# The CSS width each surface displays an image at. An image narrower than its slot is stretched
+# by the browser: 47 paintings shipped that way for months because every gate compared a page
+# against its own equally-soft baseline (specs/006-image-resolution).
+# Only the grid has a FIXED slot: its figure sets width:100% inside a 600px card, so a
+# narrow image really is stretched. The artwork page's figure shrink-wraps (flex column,
+# align-items:center), so its image renders at natural width and can never be upscaled --
+# measured, after an earlier version of this check wrongly assumed a 1000px slot there.
+DISPLAY_SLOTS = (("class=lazyload", 600, "grid card"),)
+
+
+def check_no_upscaling(built, content_dir="content"):
+    """Fail when an image is displayed wider than it is served, and the master could have covered it."""
+    masters = {}
+    for dp, _, fns in os.walk(content_dir):
+        for fn in fns:
+            if fn.lower().endswith(IMAGE_EXTS):
+                size = image_size(os.path.join(dp, fn))
+                if size:
+                    masters[os.path.basename(dp)] = max(masters.get(os.path.basename(dp), 0), size[0])
+
+    stretched, too_small, checked = [], [], 0
+    for dp, _, fns in os.walk(built):
+        for fn in fns:
+            if not fn.endswith(".html"):
+                continue
+            page = os.path.join(dp, fn)
+            html = open(page, encoding="utf-8", errors="replace").read()
+            for tag in re.findall(r"<img\b[^>]*>", html):
+                m = re.search(r'data-src=["\']?([^"\'> ]+)', tag)
+                if not m:
+                    continue
+                if "gallery-single-img" in tag:
+                    continue  # no fixed slot; see DISPLAY_SLOTS
+                slot = next((w for token, w, _ in DISPLAY_SLOTS if token in tag), None)
+                if slot is None:
+                    continue
+                served = image_size(os.path.join(built, m.group(1).lstrip("/")))
+                if not served:
+                    continue
+                checked += 1
+                if served[0] >= slot:
+                    continue
+                slug = m.group(1).lstrip("/").split("/")[0]
+                where = f"{os.path.relpath(page, built)} -> {served[0]}px served into a {slot}px slot"
+                # Constitution III: if the master itself is too small, only the artist can fix that.
+                (too_small if masters.get(slug, 0) < slot else stretched).append(where)
+
+    for s in stretched:
+        errors.append(f"image is upscaled by the browser: {s} — size it by width, not longest edge")
+    if too_small:
+        warnings.append(
+            f"{len(too_small)} image(s) served below their display size because the master is smaller: "
+            + "; ".join(too_small[:3])
+        )
+    notes.append(f"{checked} displayed images checked against their slot width")
+
+
 def check_expected_files(built):
     for rel in ("index.html", "about/index.html", "request/index.html", "sitemap.xml", "robots.txt"):
         if not os.path.exists(os.path.join(built, rel)):
@@ -162,6 +261,7 @@ def main():
     check_no_masters(built)
     check_payload(built)
     check_artwork_pages(built, artworks)
+    check_no_upscaling(built, content)
     check_expected_files(built)
     check_internal_links(built)
 
