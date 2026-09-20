@@ -26,6 +26,9 @@ hugo.linux
 .claude/settings.local.json
 
 ### Test tooling ###
+.coverage
+__pycache__/
+.pytest_cache/
 # Screenshot baselines under tests/visual/*-snapshots/ ARE committed — they are the record
 # of how the site is supposed to look. Only run artifacts are ignored.
 /node_modules/

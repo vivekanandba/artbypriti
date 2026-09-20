@@ -61,6 +61,12 @@ jobs:
             hugo-img-${{ env.HUGO_VERSION }}-
       # Validates inputs, builds strictly, then asserts on the built site. `make check` is the
       # same command a developer runs, so CI cannot drift from local.
+      # The gates are AI-written and have shipped five bugs of their own; the suite that
+      # proves they still work runs before they are trusted to judge anything else.
+      - name: Unit tests + coverage floor
+        run: |
+          python3 -m pip install --quiet -r requirements-dev.txt
+          make test
       - name: Run gates
         env:
           HUGO_CACHEDIR: ${{ runner.temp }}/hugo_cache

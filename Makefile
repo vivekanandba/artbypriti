@@ -2,7 +2,7 @@
 # Visual regression additionally requires Docker. Run `make` for the list.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup serve build check check-all preflight live spec-required visual visual-update new clean
+.PHONY: help setup serve build check check-all test coverage preflight live spec-required visual visual-update new clean
 
 # Pinned so screenshots are comparable: the container fixes font rendering, which is the
 # only way CI and a developer machine agree (spec FR-006). Must match the @playwright/test
@@ -42,7 +42,19 @@ serve: ## Dev server with drafts at http://localhost:1313
 build: ## Production build into ./public
 	$(HUGO_BUILD)
 
-check: ## Fast gates: specs, front matter, strict build, output assertions
+# The gates are what everything else trusts, and they have shipped five bugs of their own.
+# Testing them is not optional ceremony; COVERAGE_FLOOR only ever ratchets up (CON-COV-002).
+COVERAGE_FLOOR ?= 95
+
+test: ## Unit-test the gate scripts
+	python3 -m coverage run -m pytest
+	@python3 -m coverage report --fail-under=$(COVERAGE_FLOOR)
+
+coverage: ## Unit tests with a line-by-line miss report
+	python3 -m coverage run -m pytest
+	python3 -m coverage report -m
+
+check: test ## Everything fast: unit tests, specs, front matter, strict build, output assertions
 	python3 scripts/check-specs.py
 	python3 scripts/check-content.py
 	$(HUGO_BUILD) --panicOnWarning --printPathWarnings

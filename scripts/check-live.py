@@ -13,7 +13,7 @@ import time
 import urllib.error
 import urllib.request
 
-BASE = (sys.argv[1] if len(sys.argv) > 1 else "https://artbypriti.com").rstrip("/")
+DEFAULT_BASE = "https://artbypriti.com"
 PAGES = ["/", "/about/", "/request/", "/olive/", "/categories/acrylic-on-canvas/", "/robots.txt", "/sitemap.xml"]
 ARCHIVE = "https://github.com/vivekanandba/artbypriti/tree/legacy-archive/legacy"
 # The masters were removed from the payload; if one is reachable again, publishResources regressed.
@@ -38,18 +38,22 @@ def fetch(url, tries=3):
     return None, str(last).encode()
 
 
-def main():
+def main(base=None):
+    # Read argv here, not at import. Parsing it at module level meant importing this file
+    # from a test runner picked up the runner's own arguments as the site URL, every request
+    # then failed URL construction, and the retry backoff slept for real -- minutes per test.
+    base = (base or (sys.argv[1] if len(sys.argv) > 1 else DEFAULT_BASE)).rstrip("/")
     for path in PAGES:
-        code, _ = fetch(BASE + path)
+        code, _ = fetch(base + path)
         if code != 200:
-            errors.append(f"{BASE}{path} returned {code}")
+            errors.append(f"{base}{path} returned {code}")
     if not errors:
         notes.append(f"{len(PAGES)} key pages return 200")
 
-    code, _ = fetch(BASE + MUST_404)
+    code, _ = fetch(base + MUST_404)
     if code == 200:
         errors.append(
-            f"{BASE}{MUST_404} is reachable — a full-resolution master is being published again"
+            f"{base}{MUST_404} is reachable — a full-resolution master is being published again"
         )
     else:
         notes.append("full-resolution masters are not published")
@@ -60,7 +64,7 @@ def main():
     else:
         notes.append("legacy archive still resolves")
 
-    code, body = fetch(BASE + "/")
+    code, body = fetch(base + "/")
     if code == 200 and b"_hu_" not in body:
         warnings.append("home page served no processed image variants — check the gallery rendered")
 
@@ -70,7 +74,7 @@ def main():
         print(f"warning: {w}")
     for e in errors:
         print(f"ERROR:   {e}")
-    print(f"\nlive check of {BASE}: {len(errors)} error(s), {len(warnings)} warning(s)")
+    print(f"\nlive check of {base}: {len(errors)} error(s), {len(warnings)} warning(s)")
     return 1 if errors else 0
 
 
