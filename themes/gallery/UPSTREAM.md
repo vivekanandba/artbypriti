@@ -50,8 +50,19 @@ theme's own copies:
 - `layouts/_default/single.html` — artwork page: title, gallery, category link, related, prose.
 - `layouts/partials/gallery.html` — single-image centred layout plus the dimensions caption.
 - `layouts/partials/head.html` — page title and favicon handling.
+- `layouts/partials/get-gallery.html` — **shadows the theme's copy.** Sizes card thumbnails by
+  *width* rather than longest edge, and returns a `srcset`. The theme's `fit 600x600` left every
+  portrait painting ~434 px wide inside a 600 px card, so 23 of 46 were stretched by the browser
+  (`specs/006-image-resolution`).
+- `layouts/partials/album-card.html` — **shadows the theme's copy.** Same as the theme's
+  locally-modified version plus `data-srcset`/`data-sizes`, which lazysizes unveils.
 - `assets/css/custom.css` — the site's visual identity. It reaches the page because the theme's
   `assets/css/main.scss` does `@import "custom"`, *not* via any `<link>` tag.
+
+> **Two more files are now shadowed.** As with `gallery.html`, the theme's own
+> `get-gallery.html` and `album-card.html` are dead code: the root copies win at build time.
+> Edit the root copies. When updating the theme, diff its versions of these against the root
+> overrides so an upstream fix is not silently discarded.
 
 ## Updating the theme
 
