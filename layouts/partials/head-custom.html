@@ -1,1 +1,17 @@
-<!-- Custom <head> tags (e.g. analytics code) -->
+{{/*
+  Security headers, as far as this host allows (CON-SEC-004).
+
+  GitHub Pages cannot send HTTP headers at all, so what can be declared is declared here in a
+  meta tag, and what cannot is recorded rather than passed over in silence. See
+  docs/security.md for the full statement and docs/incidents.md for what remains uncovered.
+
+  Measured against the built output rather than assumed:
+    - 0 inline <script> blocks        -> script-src can be strict 'self'
+    - 0 inline <style> blocks         -> but 184 style= ATTRIBUTES on the home page, which
+                                         require 'unsafe-inline' for style-src. Moving those
+                                         into custom.css is the follow-up that would let this
+                                         go strict; it changes rendering, so it is its own change.
+    - no external origins, no data: URIs
+*/}}
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
