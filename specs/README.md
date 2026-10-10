@@ -9,6 +9,7 @@ decisions), `tasks.md` (what was actually done). Created with `/speckit-specify`
 | [000](./000-backend-optimization/) | Backend & build optimization | ⚠️ **Backfilled** — shipped before this process existed | PR #15 |
 | [001](./001-quality-gates/) | Automated quality gates | Implemented | PR #16 |
 | [002](./002-spec-process/) | Spec-first, gate-last enforcement | Implemented | PR #17 |
+| [009](./009-installable-gallery/) | Installable gallery, offline pages | Implemented | this PR |
 
 ## Why 000 is numbered out of band
 

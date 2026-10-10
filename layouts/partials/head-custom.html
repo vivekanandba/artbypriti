@@ -1,1 +1,16 @@
 <!-- Custom <head> tags (e.g. analytics code) -->
+
+{{/* Installable on a phone, and the shell opens without a connection (spec 009).
+     The worker is a static file: Hugo fingerprints the CSS and JS, so it caches
+     what the visitor loaded rather than naming hashed files it cannot know. */}}
+<link rel="manifest" href="{{ "manifest.webmanifest" | relURL }}" />
+<meta name="theme-color" content="#1a1a1a" />
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("{{ "sw.js" | relURL }}").catch(function () {
+        /* An unregistered worker is a missing optimisation, never a broken page. */
+      });
+    });
+  }
+</script>
