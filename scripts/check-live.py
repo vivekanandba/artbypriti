@@ -64,7 +64,19 @@ def main(base=None):
     else:
         notes.append("legacy archive still resolves")
 
+    # CON-SEC-004: the headers a deployed project sends must be asserted against the
+    # RUNNING site, not just present in a template. GitHub Pages cannot send real headers,
+    # so what is assertable is the meta-tag policy -- and the gap is recorded in
+    # docs/security.md rather than left implicit.
     code, body = fetch(base + "/")
+    if code == 200:
+        if b"Content-Security-Policy" not in body:
+            errors.append("the live home page sends no Content-Security-Policy")
+        elif b"script-src 'self'" not in body and b"script-src &#39;self&#39;" not in body:
+            warnings.append("the live CSP no longer restricts script-src to 'self'")
+        else:
+            notes.append("live CSP present and script-src is restricted to 'self'")
+
     if code == 200 and b"_hu_" not in body:
         warnings.append("home page served no processed image variants — check the gallery rendered")
 
