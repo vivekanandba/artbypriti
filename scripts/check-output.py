@@ -217,6 +217,51 @@ def check_expected_files(built):
             errors.append(f"expected output missing: {rel}")
 
 
+def check_installable(built):
+    """The site is installable and its icons are what they claim to be (spec 009).
+
+    The manifest, the worker and both icons must exist in the built output, every
+    icon the manifest names must be present, and a PNG icon must really be a PNG:
+    the repo's apple-touch-icon.png and favicon.png are JPEG data with a .png
+    name, which browsers sniff past but a manifest declaring image/png does not.
+    """
+    import json
+
+    manifest_rel = "manifest.webmanifest"
+    manifest_path = os.path.join(built, manifest_rel)
+    if not os.path.exists(manifest_path):
+        errors.append(f"expected output missing: {manifest_rel}")
+        return
+    if not os.path.exists(os.path.join(built, "sw.js")):
+        errors.append("expected output missing: sw.js")
+
+    with open(manifest_path, encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    sizes = {icon.get("sizes") for icon in manifest.get("icons", [])}
+    for required in ("192x192", "512x512"):
+        if required not in sizes:
+            errors.append(f"manifest declares no {required} icon; a phone will not install it")
+    for icon in manifest.get("icons", []):
+        rel = icon["src"].lstrip("/")
+        path = os.path.join(built, rel)
+        if not os.path.exists(path):
+            errors.append(f"manifest names {icon['src']}, which is not in the built site")
+            continue
+        if icon.get("type") == "image/png":
+            with open(path, "rb") as fh:
+                if fh.read(8) != b"\x89PNG\r\n\x1a\n":
+                    errors.append(f"{icon['src']} is declared image/png but is not a PNG")
+
+    index = os.path.join(built, "index.html")
+    if os.path.exists(index):
+        with open(index, encoding="utf-8") as fh:
+            html = fh.read()
+        if "rel=manifest" not in html.replace('rel="manifest"', "rel=manifest"):
+            errors.append("index.html does not link the manifest")
+        if "serviceWorker" not in html:
+            errors.append("index.html does not register the service worker")
+
+
 def check_internal_links(built):
     """Every internal href/src must resolve to something in the built site."""
     checked = 0
@@ -263,6 +308,7 @@ def main():
     check_artwork_pages(built, artworks)
     check_no_upscaling(built, content)
     check_expected_files(built)
+    check_installable(built)
     check_internal_links(built)
 
     for n in notes:

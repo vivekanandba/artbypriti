@@ -29,14 +29,37 @@ class _Site:
         return p
 
 
+MANIFEST = """{
+  "name": "Art by Priti", "short_name": "Art by Priti",
+  "start_url": "/", "scope": "/", "display": "standalone",
+  "icons": [
+    {"src": "/images/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/images/icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}"""
+
+# A valid site is installable, so the baseline fixture carries the PWA files too.
+INSTALLABLE_PAGE = (
+    "<html><head><link rel=manifest href=/manifest.webmanifest>"
+    "<script>navigator.serviceWorker.register('/sw.js')</script></head></html>"
+)
+
+
 @pytest.fixture
 def site(tmp_path):
     root = tmp_path / "public"
     s = _Site(root)
-    for rel in ("index.html", "about/index.html", "request/index.html"):
+    s.add_page("index.html", INSTALLABLE_PAGE)
+    for rel in ("about/index.html", "request/index.html"):
         s.add_page(rel, "<html></html>")
     for rel in ("sitemap.xml", "robots.txt"):
         (root / rel).write_text("x", encoding="utf-8")
+    (root / "manifest.webmanifest").write_text(MANIFEST, encoding="utf-8")
+    (root / "sw.js").write_text("// worker", encoding="utf-8")
+    for rel, size in (("images/icon-192.png", 192), ("images/icon-512.png", 512)):
+        q = root / rel
+        q.parent.mkdir(parents=True, exist_ok=True)
+        q.write_bytes(png_bytes(size, size))
     return s
 
 
