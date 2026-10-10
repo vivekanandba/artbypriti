@@ -22,6 +22,10 @@
 - [x] **T007** `scripts/check-shipped-deps.py` — fails on any external origin in the published site;
       ignores `schema.org` itemtypes and XML namespaces, which are identifiers rather than fetches.
 - [x] **T008** Negative-test it with a planted CDN script.
+- [x] **T008b** CI caught my own mistake: the shipped-tree audit sat in the `security` job, which
+      deliberately does not build, so it failed with "no built site". Moved into `make check`,
+      which is the job that builds — an assertion about *published output* belongs with the other
+      output assertions. The secret scan itself passed on the real runner.
 
 ## Phase 2 — Headers (US3)
 

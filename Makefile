@@ -59,6 +59,7 @@ check: test ## Everything fast: unit tests, specs, front matter, strict build, o
 	python3 scripts/check-content.py
 	$(HUGO_BUILD) --panicOnWarning --printPathWarnings
 	python3 scripts/check-output.py public
+	python3 scripts/check-shipped-deps.py public
 
 spec-required: ## Check this branch records intent (spec or No-Spec:). BASE=main by default
 	python3 scripts/check-specs.py --diff-base $(or $(BASE),main)

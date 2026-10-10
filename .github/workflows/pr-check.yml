@@ -97,12 +97,9 @@ jobs:
         run: gitleaks detect --source . --no-banner --redact --exit-code 1
 
       # CON-SEC-003: the shipped tree and the build tree are audited separately, because a
-      # single count misleads in both directions. Here the split is stark -- the published
-      # site has NO runtime dependencies, so everything scannable is build-only, and that is
-      # the half that executes in CI with real credentials.
-      - name: The shipped site still has no runtime dependencies
-        run: python3 scripts/check-shipped-deps.py
-
+      # single count misleads in both directions. Below is the BUILD half. The shipped half
+      # lives in `make check`, which is the job that actually builds the site -- an assertion
+      # about published output belongs with the other output assertions, not here.
       - name: Audit build-time Python
         run: |
           python3 -m pip install --quiet pip-audit
