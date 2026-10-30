@@ -72,7 +72,7 @@ make new SLUG=my-painting      # scaffold an artwork bundle
 | `themes/gallery/` | **Vendored** (not a submodule) — see `themes/gallery/UPSTREAM.md` before touching it |
 | `scripts/` | `check-content.py` validates inputs, `check-output.py` validates the built site |
 | `tests/visual/` | Playwright specs and committed screenshot baselines |
-| `docs/` | Deployment notes, the backend optimization plan, the legacy archive pointer |
+| `docs/` | Deployment notes, security posture, incidents, the legacy archive pointer, the open questions for the artist, and the vendored constitution-ID list |
 
 ## Gotchas that have cost time
 
@@ -94,5 +94,7 @@ make new SLUG=my-painting      # scaffold an artwork bundle
 - Non-trivial work gets a spec under `specs/` first (`/speckit-specify`).
 - Never force-push `main`; never rewrite shared history.
 - Do not invent artistic facts. A painting's dimensions, a description, the artist's choice of
-  units — these come from her, and automation warns rather than guesses.
+  units — these come from her, and automation warns rather than guesses. The open questions are
+  collected in [`docs/artist-requests.md`](docs/artist-requests.md); add to it rather than
+  filling a gap in.
 - Fixing a defect includes adding it to a gate, so the same class cannot return silently.
