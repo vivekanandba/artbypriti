@@ -97,4 +97,7 @@ make new SLUG=my-painting      # scaffold an artwork bundle
   units — these come from her, and automation warns rather than guesses. The open questions are
   collected in [`docs/artist-requests.md`](docs/artist-requests.md); add to it rather than
   filling a gap in.
+- This repo raised four constitution amendments that are still proposals. What they need before
+  they can be adopted is in [`docs/constitution-handoff.md`](docs/constitution-handoff.md) —
+  the edit belongs in the fleet repo, not here (`CON-PROC-007`).
 - Fixing a defect includes adding it to a gate, so the same class cannot return silently.
