@@ -17,7 +17,8 @@ below.
 | [008](./008-test-strategy/) | Test the gates — 0% → 99% coverage | Implemented | PR #24 |
 | [009](./009-installable-gallery/) | Installable gallery, offline pages | Implemented | PR #27 |
 | [010](./010-security-gates/) | Security gates (CON-SEC-002/003/004) | Implemented | PR #26 |
-| [011](./011-larger-artwork/) | Show the paintings larger on their own page | In review | this PR |
+| [011](./011-larger-artwork/) | Show the paintings larger on their own page | Implemented | PR #28 |
+| [012](./012-citation-guard/) | Guard the constitution citations against rot | In review | this PR |
 
 **Two numbering notes, recorded rather than tidied away:**
 

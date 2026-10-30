@@ -1,0 +1,18 @@
+# Rule IDs this repository cites as PROPOSED but the constitution has not adopted.
+#
+# A citation to one of these is an honest record that this project proposed a rule, not a
+# claim that the rule exists. Without this file the two are indistinguishable from a typo,
+# and a gate that fails honest text gets switched off -- which this project has already
+# written down twice.
+#
+# The exemption costs a sentence, deliberately. Format:
+#
+#   CON-XXX-NNN  <why this ID is cited before it exists>
+#
+# An entry here is WRONG once the rule is adopted: check-citations.py fails on an entry that
+# now appears in constitution-ids.txt, because the citation should then stand on its own.
+# It warns on an entry nothing cites, because a dead exemption is how an allowlist quietly
+# becomes a blanket.
+
+CON-DATA-006  Proposed by this repo in specs/005-adopt-house-standards (never fabricate domain content); awaiting fleet review, ID still free.
+CON-PROC-010  Proposed by this repo in specs/005-adopt-house-standards (history is additive); pending renumbering in the handoff, since it also needs a security-remediation exception.

@@ -1,15 +1,23 @@
 # Tests
 
-Three gates, all runnable locally and all run by CI on every pull request. Spec:
+Four gates, all runnable locally and all run by CI on every pull request. Spec:
 [`specs/001-quality-gates/spec.md`](../specs/001-quality-gates/spec.md).
 
 | Gate | Command | Guards |
 | --- | --- | --- |
 | Content validation | `python3 scripts/check-content.py` | Front matter: declared files exist, captions well-formed |
 | Output assertions | `python3 scripts/check-output.py public` | The **built site**: no published masters, payload budget, every artwork renders an image + caption, no broken internal links |
+| Citation check | `python3 scripts/check-citations.py` | That every `CON-*` rule this repo cites actually **exists** upstream ([spec 012](../specs/012-citation-guard/spec.md)) |
 | Visual regression | `make visual` | How pages actually **look** |
 
-`make check` runs the first two (seconds). `make check-all` adds visual regression (needs Docker).
+`make check` runs the first three (seconds). `make check-all` adds visual regression (needs Docker).
+
+The citation check reads a **vendored** list, `docs/constitution-ids.txt`, because CI only gets this
+repository and cannot see `~/.claude` (`CON-VER-004`). Refresh it with `make constitution-ids`. An ID
+this repo has *proposed* but the constitution has not adopted goes in
+`docs/constitution-ids-proposed.txt` with a reason — otherwise an honest proposal is
+indistinguishable from a typo. To write *about* a bad ID without tripping the gate, put
+`not-a-citation` on the line.
 
 ## Why output assertions exist at all
 
