@@ -13,6 +13,11 @@
 # now appears in constitution-ids.txt, because the citation should then stand on its own.
 # It warns on an entry nothing cites, because a dead exemption is how an allowlist quietly
 # becomes a blanket.
+#
+# Both entries below are waiting on one edit in the fleet repo. What that edit is, exactly,
+# is written down in docs/constitution-handoff.md so it does not have to be re-derived.
 
 CON-DATA-006  Proposed by this repo in specs/005-adopt-house-standards (never fabricate domain content); awaiting fleet review, ID still free.
 CON-PROC-010  Proposed by this repo in specs/005-adopt-house-standards (history is additive); pending renumbering in the handoff, since it also needs a security-remediation exception.
+CON-PROC-014  Recommended renumbering for the verify-from-the-commit proposal, whose CON-PROC-009 was taken by the fleet; see docs/constitution-handoff.md.
+CON-PROC-015  Recommended renumbering for the history-is-additive proposal, which also needs a security-remediation exception; see docs/constitution-handoff.md.

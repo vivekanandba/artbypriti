@@ -35,7 +35,14 @@
 
 - [ ] **T013** Run the constitution installer against `landseer`, `resumefit`, `gadjoy` — needs their
       maintainer's go-ahead.
-- [ ] **T014** Fix `resumefit/scripts/install-hooks.sh`, which aborts on any repo containing `specs/`.
+- [~] **T014** ~~Fix `resumefit/scripts/install-hooks.sh`, which aborts on any repo containing
+      `specs/`.~~ **WITHDRAWN 2026-10-30 — the claim was false.** Re-checked against the file:
+      line 47 reads `if [ -d specs ] || [ -d .specify ]`, which *enables* the spec gate where
+      specs live and skips it elsewhere; `scripts/check-spec.sh` exists and was committed
+      2026-08-05, before the session that reported this. The original note generalised one
+      local failure into a defect in another project's code without reproducing it. Struck
+      through rather than deleted, because a withdrawn claim is itself a record
+      (`CON-DATA-001`) — and because resumefit was never told about a bug it did not have.
 - [ ] **T015** Decide whether `~/.claude/CLAUDE.md` should become the canonical upstream for
       `constitution/base.md`.
 - [ ] **T016** Branch protection / rulesets — still the owner's setting, now one layer of seven.
