@@ -125,6 +125,40 @@ def check_hygiene():
     notes.append(f"{len(features)} feature spec(s) checked: {', '.join(features)}")
 
 
+def check_registry():
+    """specs/README.md must list every spec, and only specs that exist.
+
+    The registry is a document whose entire purpose is completeness, and nothing asserted it
+    was complete: it listed 4 of 11 specs when this check was written, having drifted silently
+    for seven features. An index that quietly omits most of its contents is worse than no
+    index, because it is read as authoritative (CON-PROC-011: a rule with no enforcing
+    mechanism is a wish).
+    """
+    readme = os.path.join(SPECS_DIR, "README.md")
+    if not os.path.isfile(readme):
+        errors.append(f"{readme}: missing — the spec registry is where features are indexed")
+        return
+
+    text = open(readme, encoding="utf-8").read()
+    on_disk = {
+        d
+        for d in os.listdir(SPECS_DIR)
+        if os.path.isdir(os.path.join(SPECS_DIR, d)) and re.match(r"^\d{3}-", d)
+    }
+    # Rows link to the directory: [000](./000-backend-optimization/)
+    listed = set(re.findall(r"\]\(\./(\d{3}-[^/)]+)/?\)", text))
+
+    for missing in sorted(on_disk - listed):
+        errors.append(
+            f"{readme}: {missing}/ exists but has no row — every spec is listed, or the index lies"
+        )
+    for phantom in sorted(listed - on_disk):
+        errors.append(f"{readme}: lists {phantom}/, which does not exist")
+
+    if on_disk and on_disk == listed:
+        notes.append(f"spec registry lists all {len(on_disk)} spec(s)")
+
+
 def changed_files(base_ref):
     """Files changed relative to the merge base with base_ref."""
     merge_base = run("git", "merge-base", base_ref, "HEAD").strip()
@@ -188,6 +222,7 @@ def main():
             base_ref = sys.argv[idx + 1]
 
     check_hygiene()
+    check_registry()
     if base_ref:
         check_required(base_ref)
 

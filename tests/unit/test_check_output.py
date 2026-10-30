@@ -220,6 +220,76 @@ class TestNoUpscaling:
         assert co.errors == []
 
 
+class TestArtworkFillsItsColumn:
+    """The inverse of TestNoUpscaling: the artwork page cannot stretch an image, only waste
+    the column around it. Both failure modes are real and neither check sees the other's."""
+
+    def _artwork(self, site, content, *, served, master, slug="olive"):
+        d = content(slug, image=None)
+        (d / f"{slug}.jpg").write_bytes(jpeg_bytes(master, master * 2))
+        site.add_variant(f"{slug}/p_hu_1.jpg", served)
+        site.add_page(
+            f"{slug}/index.html",
+            f'<img class="lazyload gallery-single-img" data-src=/{slug}/p_hu_1.jpg>',
+        )
+
+    def test_narrow_variant_from_a_large_master_fails(self, co, site, content):
+        """The exact defect spec 011 fixed: fit-by-longest-edge on a portrait painting."""
+        self._artwork(site, content, served=723, master=1832)
+        co.check_artwork_fills_its_column(str(site.root), str(content.root))
+        assert any("under-fills its column" in e for e in co.errors)
+        assert any("723px" in e and "1000px column" in e for e in co.errors)
+
+    def test_variant_filling_the_column_passes(self, co, site, content):
+        self._artwork(site, content, served=1000, master=1832)
+        co.check_artwork_fills_its_column(str(site.root), str(content.root))
+        assert co.errors == []
+
+    def test_variant_wider_than_the_column_passes(self, co, site, content):
+        self._artwork(site, content, served=1600, master=1832)
+        co.check_artwork_fills_its_column(str(site.root), str(content.root))
+        assert co.errors == []
+
+    def test_small_master_warns_instead_of_failing(self, co, site, content):
+        """Constitution III: /about/'s master is 739px wide. That is the artist's, not a bug."""
+        self._artwork(site, content, served=739, master=739)
+        co.check_artwork_fills_its_column(str(site.root), str(content.root))
+        assert co.errors == []
+        assert any("master is smaller" in w for w in co.warnings)
+
+    def test_variant_wider_than_its_master_reports_uncertainty(self, co, site, content):
+        """CON-VER-005: an EXIF-rotated master makes the stored width the wrong number to
+        compare against. Say the measurement cannot be trusted; do not pick a side."""
+        self._artwork(site, content, served=900, master=800)
+        co.check_artwork_fills_its_column(str(site.root), str(content.root))
+        assert co.errors == []
+        assert any("orientation is not what was assumed" in w for w in co.warnings)
+
+    def test_grid_images_are_not_judged_by_this_check(self, co, site, content):
+        """A 600px grid thumbnail is correct; only the artwork page has a 1000px column."""
+        content("olive", image="painting.jpg")
+        site.add_variant("olive/p_hu_1.jpg", 600)
+        site.add_page("index.html", '<img class=lazyload data-src=/olive/p_hu_1.jpg>')
+        co.check_artwork_fills_its_column(str(site.root), str(content.root))
+        assert co.errors == []
+        assert any("0 artwork image(s) checked" in n for n in co.notes)
+
+    def test_images_without_data_src_are_skipped(self, co, site, content):
+        content("olive")
+        site.add_page("olive/index.html", '<img class="gallery-single-img" src=/x.jpg>')
+        co.check_artwork_fills_its_column(str(site.root), str(content.root))
+        assert co.errors == []
+
+    def test_missing_variant_file_is_skipped_not_guessed(self, co, site, content):
+        content("olive", image="painting.jpg")
+        site.add_page(
+            "olive/index.html",
+            '<img class="lazyload gallery-single-img" data-src=/olive/gone.jpg>',
+        )
+        co.check_artwork_fills_its_column(str(site.root), str(content.root))
+        assert co.errors == []
+
+
 class TestArtworksFromContent:
     def test_reports_whether_dimensions_are_promised(self, co, content):
         content("with-dims", dimensions="(5 cm X 5 cm)")

@@ -164,8 +164,14 @@ def image_size(path):
 DISPLAY_SLOTS = (("class=lazyload", 600, "grid card"),)
 
 
-def check_no_upscaling(built, content_dir="content"):
-    """Fail when an image is displayed wider than it is served, and the master could have covered it."""
+def master_widths(content_dir):
+    """Widest master per artwork slug, used to decide what a page could have shown.
+
+    Reads the stored width. Hugo applies AutoOrient before sizing, so for an EXIF-rotated
+    master the stored width is not the displayed one -- no master carries a rotation today,
+    and the callers below report "cannot determine" rather than guessing if one ever does
+    (CON-VER-005: a check that misdiagnoses is worse than no check).
+    """
     masters = {}
     for dp, _, fns in os.walk(content_dir):
         for fn in fns:
@@ -173,6 +179,86 @@ def check_no_upscaling(built, content_dir="content"):
                 size = image_size(os.path.join(dp, fn))
                 if size:
                     masters[os.path.basename(dp)] = max(masters.get(os.path.basename(dp), 0), size[0])
+    return masters
+
+
+# The artwork page's column, from .gallery-single-img { width: 100%; max-width: 1000px }.
+ARTWORK_COLUMN = 1000
+
+
+def check_artwork_fills_its_column(built, content_dir="content"):
+    """Fail when an artwork page shows a painting smaller than the page affords.
+
+    This is the INVERSE of check_no_upscaling, and deliberately a separate check. The artwork
+    figure shrink-wraps (flex column, align-items:center), so its image renders at
+    min(natural, 1000) and the browser can never stretch it -- pointing the upscaling check
+    here would be the wrong assertion wearing the right name. The failure mode on this page is
+    under-filling: `images.Process "fit 1000x1000"` constrains the LONGEST edge, so a portrait
+    painting came out 577-792px wide in a 1000px column (24 of 47 images, spec 011).
+
+    Nothing caught that for months. Visual regression compares each page against its own
+    equally-under-filled baseline, and the other output assertions check that an image exists,
+    not that it is as large as the page affords. The same blindness shipped the grid soft for
+    15 months (spec 006), which is why this is a gate and not a note.
+    """
+    masters = master_widths(content_dir)
+    short, too_small, unknown, checked = [], [], [], 0
+
+    for dp, _, fns in os.walk(built):
+        for fn in fns:
+            if not fn.endswith(".html"):
+                continue
+            page = os.path.join(dp, fn)
+            html = open(page, encoding="utf-8", errors="replace").read()
+            for tag in re.findall(r"<img\b[^>]*>", html):
+                if "gallery-single-img" not in tag:
+                    continue
+                m = re.search(r'data-src=["\']?([^"\'> ]+)', tag)
+                if not m:
+                    continue
+                served = image_size(os.path.join(built, m.group(1).lstrip("/")))
+                if not served:
+                    continue
+                checked += 1
+                if served[0] >= ARTWORK_COLUMN:
+                    continue
+                slug = m.group(1).lstrip("/").split("/")[0]
+                master = masters.get(slug, 0)
+                where = (
+                    f"{os.path.relpath(page, built)} -> {served[0]}px served into a "
+                    f"{ARTWORK_COLUMN}px column (master {master}px)"
+                )
+                if served[0] > master:
+                    # The variant is wider than the master we measured, so the measurement is
+                    # wrong -- most likely an EXIF-rotated master. Say so; do not pick a side.
+                    unknown.append(where)
+                elif master < ARTWORK_COLUMN:
+                    # Constitution III: only the artist can supply resolution never photographed.
+                    too_small.append(where)
+                else:
+                    short.append(where)
+
+    for s in short:
+        errors.append(
+            f"artwork under-fills its column: {s} — size it by width, not longest edge"
+        )
+    if too_small:
+        warnings.append(
+            f"{len(too_small)} artwork(s) below the {ARTWORK_COLUMN}px column because the master "
+            f"is smaller, which is the artist's call, not a defect: " + "; ".join(too_small[:3])
+        )
+    if unknown:
+        warnings.append(
+            f"{len(unknown)} artwork(s) could not be checked: the served variant is wider than "
+            f"the master as measured, so the master's orientation is not what was assumed: "
+            + "; ".join(unknown[:3])
+        )
+    notes.append(f"{checked} artwork image(s) checked against the {ARTWORK_COLUMN}px column")
+
+
+def check_no_upscaling(built, content_dir="content"):
+    """Fail when an image is displayed wider than it is served, and the master could have covered it."""
+    masters = master_widths(content_dir)
 
     stretched, too_small, checked = [], [], 0
     for dp, _, fns in os.walk(built):
@@ -363,6 +449,7 @@ def main():
     check_payload(built)
     check_artwork_pages(built, artworks)
     check_no_upscaling(built, content)
+    check_artwork_fills_its_column(built, content)
     check_csp_matches_the_markup(built)
     check_expected_files(built)
     check_installable(built)

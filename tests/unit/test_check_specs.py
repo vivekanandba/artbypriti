@@ -24,8 +24,26 @@ def specs(tmp_path, monkeypatch):
     run("git", "config", "user.name", "T")
     root = tmp_path / "specs"; root.mkdir()
 
-    def feature(name, *, spec=True, criteria=True, tokens=False, plan=False, tasks=False):
+    def write_registry(names):
+        """specs/README.md as check_registry expects it: one linked row per feature."""
+        rows = "\n".join(f"| [{n[:3]}](./{n}/) | {n} | Implemented | PR #1 |" for n in sorted(names))
+        (root / "README.md").write_text(
+            "# Specs\n\n| # | Feature | Status | Shipped as |\n| --- | --- | --- | --- |\n"
+            + rows
+            + "\n",
+            encoding="utf-8",
+        )
+
+    created = set()
+
+    def feature(name, *, spec=True, criteria=True, tokens=False, plan=False, tasks=False,
+                registry=True):
         d = root / name; d.mkdir(parents=True, exist_ok=True)
+        # A tree is only "clean" if the index matches it, so the fixture keeps them in step
+        # unless a test is specifically exercising the drift.
+        if registry:
+            created.add(name)
+        write_registry(created)
         if spec:
             body = [f"# Feature Specification: {name}", "", "## Requirements", "- FR-001: a thing"]
             if criteria: body += ["", "## Success Criteria", "- SC-001: it works"]
@@ -36,6 +54,7 @@ def specs(tmp_path, monkeypatch):
         return d
 
     feature.root, feature.run, feature.tmp = root, run, tmp_path
+    feature.write_registry = write_registry
     return feature
 
 
@@ -149,6 +168,43 @@ class TestSpecRequired:
         self._branch_with(specs, files)
         cs.check_required("main")
         assert any("and 3 more" in e for e in cs.errors)
+
+
+class TestRegistry:
+    """specs/README.md drifted to 4 of 11 specs with nothing asserting otherwise. An index
+    is only useful if something fails when it stops being complete (CON-PROC-011)."""
+
+    def test_a_spec_missing_from_the_index_fails(self, cs, specs):
+        specs("001-listed")
+        specs("002-hidden", registry=False)   # on disk, never added to the table
+        cs.check_registry()
+        assert any("002-hidden/ exists but has no row" in e for e in cs.errors)
+
+    def test_an_index_row_for_a_missing_spec_fails(self, cs, specs):
+        specs("001-listed")
+        specs.write_registry({"001-listed", "003-deleted"})
+        cs.check_registry()
+        assert any("lists 003-deleted/, which does not exist" in e for e in cs.errors)
+
+    def test_a_complete_index_passes(self, cs, specs):
+        specs("001-listed")
+        specs("002-also-listed")
+        cs.check_registry()
+        assert cs.errors == []
+        assert any("lists all 2 spec(s)" in n for n in cs.notes)
+
+    def test_a_missing_readme_fails(self, cs, specs):
+        specs("001-listed")
+        (specs.root / "README.md").unlink()
+        cs.check_registry()
+        assert any("missing" in e for e in cs.errors)
+
+    def test_non_numeric_directories_are_ignored(self, cs, specs):
+        """`templates/` or a stray scratch directory is not a feature and needs no row."""
+        specs("001-listed")
+        (specs.root / "templates").mkdir()
+        cs.check_registry()
+        assert cs.errors == []
 
 
 class TestHelpers:
