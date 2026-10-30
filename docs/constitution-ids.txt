@@ -1,0 +1,48 @@
+# Constitution rule IDs — VENDORED SNAPSHOT, generated. Do not hand-edit.
+#
+# Why this file exists: CI only gets this repository. It cannot read ~/.claude or
+# ~/data-dash, so a checker that consults the real constitution cannot be a CI gate
+# (CON-VER-004). The IDs are therefore vendored here and refreshed deliberately.
+#
+# Source:    vivekanandba/fleet (formerly constitution) — CONSTITUTION.md
+# Mirror:    ~/data-dash/.constitution-mirror @ df884fd (2026-10-14)
+# Generated: 2026-10-30
+# Refresh:   make constitution-ids
+#
+# This is a snapshot of what EXISTS, not of what this repo may cite: an ID this repo
+# proposes but the constitution has not adopted belongs in constitution-ids-proposed.txt.
+CON-COV-001
+CON-COV-002
+CON-COV-003
+CON-DATA-001
+CON-DATA-002
+CON-DATA-003
+CON-DATA-004
+CON-DATA-005
+CON-PROC-001
+CON-PROC-002
+CON-PROC-003
+CON-PROC-004
+CON-PROC-005
+CON-PROC-006
+CON-PROC-007
+CON-PROC-008
+CON-PROC-009
+CON-PROC-011
+CON-PROC-012
+CON-PROC-013
+CON-REP-001
+CON-REP-002
+CON-SEC-001
+CON-SEC-002
+CON-SEC-003
+CON-SEC-004
+CON-SEC-005
+CON-VER-001
+CON-VER-002
+CON-VER-003
+CON-VER-004
+CON-VER-005
+CON-VER-006
+CON-VER-007
+CON-VER-008

@@ -50,13 +50,17 @@ skipped it.
 ```bash
 make               # list every target
 make serve         # dev server with drafts, localhost:1313
-make check         # specs + front matter + strict build + output assertions (~1s; what CI runs)
+make check         # specs + citations + front matter + strict build + output assertions (~1s; what CI runs)
 make check-all     # the above plus visual regression (needs Docker)
 make spec-required BASE=main   # does this branch record its intent?
 make new SLUG=my-painting      # scaffold an artwork bundle
 ```
 
 `make check` must pass before you open a pull request.
+
+`make constitution-ids` refreshes `docs/constitution-ids.txt`, the vendored list of rule IDs that
+`make check` validates citations against. It is vendored because CI cannot read `~/.claude`
+(`CON-VER-004`); see [`specs/012-citation-guard/`](specs/012-citation-guard/).
 
 ## Layout
 
