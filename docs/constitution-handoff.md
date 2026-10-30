@@ -75,3 +75,43 @@ Suggested addition to the proposed text:
 In the fleet repo, on a branch, through a reviewed PR (`CON-PROC-004`, `CON-PROC-008`): renumber the
 two proposals, drop the stale parenthetical, add the security exception. None of it touches
 `CONSTITUTION.md` — adoption remains a separate, human decision.
+
+## A fifth candidate, raised 2026-10-30
+
+Not yet written as a proposal in the fleet repo, for the same reason as the renumbering above.
+Recorded here so the incident is not lost (`CON-PROC-013`: a learning that is not specific to one
+codebase has to reach the constitution, or it gets re-taught by hand in every other project).
+
+### Candidate: a conformance tool's silence is not your requirement
+
+**Incident (artbypriti, 2026-10-30, spec 014).** An accessibility gate was added with axe-core and
+reported **0 violations** across every page. Before trusting it, `alt=""` was planted on a
+painting — the single worst accessible-name regression possible on a gallery site. **Every axe
+check stayed green**, and correctly so: an empty `alt` is the standard way to mark an image
+*decorative*. The tool was right by its own standard and silent about the thing that mattered.
+
+The gap this names is not covered by the existing rules. `CON-VER-005` is about a check that
+*misdiagnoses*; axe diagnosed correctly. `CON-COV-001` is about coverage of the delivery path.
+This is a third thing: **a standards checker encodes a general standard, and the property you
+actually depend on is usually narrower than the standard.** Passing the general check is evidence,
+not the requirement.
+
+Suggested text, if adopted:
+
+> **A conformance tool passing is not the property you need.** A linter, an accessibility scanner
+> or a schema validator encodes someone else's general rule. Where your requirement is narrower
+> than that rule, assert it directly and separately. Find out which case you are in by planting
+> the defect you most fear and watching the tool stay silent.
+
+**Enforcement**: review, plus the habit `CON-PROC-009` already requires — prove the gate red
+before trusting it green. That habit is what surfaced this, and the direct assertion that replaced
+it is in `tests/visual/a11y.spec.js`.
+
+### Not proposed: "a test that cannot fail"
+
+This session found **two** tests that could not fail, both by mutation — one whose sentinel raised
+an exception the code under test swallowed, with a message containing the very word the assertion
+grepped for. That is worth recording, but it is **already a rule**: `CON-PROC-009` ends "*several
+that could not fail were found exactly that way*". Adding a second rule saying the same thing
+would be the duplication the citation convention exists to prevent. Logged as corroboration, not
+as an amendment.
