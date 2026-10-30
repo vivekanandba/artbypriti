@@ -1,3 +1,16 @@
-# Test tooling only. The published site has no runtime dependencies (spec 001 NFR-003).
-pytest==8.3.5
-pytest-cov==5.0.0
+# Test tooling only. The published site has no runtime dependencies (spec 001 NFR-003),
+# which scripts/check-shipped-deps.py enforces.
+#
+# pytest 9.0.3, not 8.3.5: pip-audit flagged PYSEC-2026-1845 against 8.3.5 on this gate's
+# very first CI run. Per CON-SEC-003 a build-time advisory is the MORE dangerous half here,
+# because it executes in CI with credentials, so it is fixed rather than filtered.
+#
+# Note the local/CI split: the package index on the development VM stops at pytest 8.3.5, so
+# 9.0.3 could not be exercised locally. CI is the authority on this one (CON-VER-004 -- run
+# the check where it will actually run), and the suite's 111 tests are what prove the upgrade.
+pytest==9.0.3
+
+# `make test` runs `coverage run -m pytest`, so coverage is a direct dependency. It was
+# previously absent and only present transitively via pytest-cov, which nothing invoked --
+# an unused dependency carrying real audit surface. Dropped.
+coverage==7.15.3

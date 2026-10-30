@@ -312,3 +312,142 @@ class TestReporting:
         out = capsys.readouterr().out
         assert rc == 1
         assert "ERROR:" in out and "warning:" in out
+
+
+class TestCspVersusMarkup:
+    """The defect that prompted this: a strict script-src met an inline registration.
+
+    The PWA's service worker stopped registering and said nothing, because registration
+    swallows its own errors. Neither feature was wrong alone; only together.
+    """
+
+    CSP = "<meta http-equiv=Content-Security-Policy content=\"script-src 'self'\">"
+
+    def test_inline_script_under_strict_csp_is_an_error(self, co, site):
+        site.add_page("index.html", self.CSP + "<script>navigator.serviceWorker.register('/sw.js')</script>")
+        co.check_csp_matches_the_markup(str(site.root))
+        assert any("inline <script>" in e for e in co.errors)
+
+    def test_external_script_under_strict_csp_passes(self, co, site):
+        site.add_page("index.html", self.CSP + '<script src=/js/sw-register.js data-sw-url=/sw.js defer></script>')
+        co.check_csp_matches_the_markup(str(site.root))
+        assert co.errors == []
+        assert any("no inline <script>" in n for n in co.notes)
+
+    def test_inline_script_without_a_csp_is_not_policed(self, co, site):
+        """Only pages that actually declare the restriction are held to it."""
+        site.add_page("index.html", "<script>console.log(1)</script>")
+        co.check_csp_matches_the_markup(str(site.root))
+        assert co.errors == []
+
+    def test_minified_attribute_quotes_are_recognised(self, co, site):
+        """Hugo strips quotes when minifying, so both spellings must match."""
+        site.add_page("index.html", "<meta content=\"script-src &#39;self&#39;\"><script>x()</script>")
+        co.check_csp_matches_the_markup(str(site.root))
+        assert any("inline <script>" in e for e in co.errors)
+
+    def test_empty_pages_are_skipped(self, co, site):
+        site.add_page("categories/index.html", "")
+        co.check_csp_matches_the_markup(str(site.root))
+        assert co.errors == []
+
+
+class TestInstallableChain:
+    """Follow the registration chain rather than grepping the HTML for a word.
+
+    The original assertion looked for "serviceWorker" in index.html, which held only while
+    the registration was inline. Externalising it for the CSP would have failed a correct
+    site, so these cover the chain: tag -> script -> worker.
+    """
+
+    PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 24
+
+    def _pwa(self, site, *, manifest=True, sw=True, icons=("192x192", "512x512"),
+             script=True, script_registers=True, html=None):
+        import json
+        # The shared `site` fixture already ships a complete PWA, so "missing" cases must
+        # remove what it provided rather than merely decline to add it.
+        for rel in ("manifest.webmanifest", "sw.js"):
+            p = site.root / rel
+            if p.exists():
+                p.unlink()
+        if manifest:
+            (site.root / "manifest.webmanifest").write_text(json.dumps({
+                "icons": [{"src": "/images/icon-%s.png" % s.split("x")[0], "sizes": s,
+                           "type": "image/png"} for s in icons]
+            }), encoding="utf-8")
+            for s in icons:
+                p = site.root / "images" / ("icon-%s.png" % s.split("x")[0])
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_bytes(self.PNG)
+        if sw:
+            (site.root / "sw.js").write_text("self.addEventListener('fetch', function(){});",
+                                             encoding="utf-8")
+        if script:
+            p = site.root / "js" / "sw-register.js"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("navigator.serviceWorker.register(u)" if script_registers else "// nothing",
+                         encoding="utf-8")
+        default = ('<link rel=manifest href=/manifest.webmanifest>'
+                   '<script src=/js/sw-register.js data-sw-url=/sw.js defer></script>')
+        site.add_page("index.html", html if html is not None else default)
+
+    def test_a_correct_external_registration_passes(self, co, site):
+        self._pwa(site)
+        co.check_installable(str(site.root))
+        assert co.errors == []
+
+    def test_the_inline_form_still_passes(self, co, site):
+        """Backwards compatible: a site that has not externalised yet is not broken by this."""
+        self._pwa(site, script=False,
+                  html='<link rel=manifest href=/manifest.webmanifest>'
+                       '<script>navigator.serviceWorker.register("/sw.js")</script>')
+        co.check_installable(str(site.root))
+        assert co.errors == []
+
+    def test_a_registration_script_missing_from_the_build_fails(self, co, site):
+        self._pwa(site, script=False)
+        co.check_installable(str(site.root))
+        assert any("not in the build" in e for e in co.errors)
+
+    def test_a_script_that_never_registers_fails(self, co, site):
+        self._pwa(site, script_registers=False)
+        co.check_installable(str(site.root))
+        assert any("never calls serviceWorker.register" in e for e in co.errors)
+
+    def test_a_registration_pointing_at_a_missing_worker_fails(self, co, site):
+        self._pwa(site, sw=False)
+        co.check_installable(str(site.root))
+        assert any("sw.js" in e for e in co.errors)
+
+    def test_no_registration_at_all_fails(self, co, site):
+        self._pwa(site, script=False, html='<link rel=manifest href=/manifest.webmanifest>')
+        co.check_installable(str(site.root))
+        assert any("does not register the service worker" in e for e in co.errors)
+
+    def test_a_missing_manifest_link_fails(self, co, site):
+        self._pwa(site, html='<script src=/js/sw-register.js data-sw-url=/sw.js></script>')
+        co.check_installable(str(site.root))
+        assert any("does not link the manifest" in e for e in co.errors)
+
+    def test_a_missing_manifest_file_fails(self, co, site):
+        self._pwa(site, manifest=False)
+        co.check_installable(str(site.root))
+        assert any("manifest.webmanifest" in e for e in co.errors)
+
+    def test_a_missing_icon_size_fails(self, co, site):
+        self._pwa(site, icons=("192x192",))
+        co.check_installable(str(site.root))
+        assert any("512x512" in e for e in co.errors)
+
+    def test_an_icon_named_but_absent_fails(self, co, site):
+        self._pwa(site)
+        (site.root / "images" / "icon-512.png").unlink()
+        co.check_installable(str(site.root))
+        assert any("not in the built site" in e for e in co.errors)
+
+    def test_an_icon_that_is_not_really_a_png_fails(self, co, site):
+        self._pwa(site)
+        (site.root / "images" / "icon-512.png").write_bytes(b"definitely not a png")
+        co.check_installable(str(site.root))
+        assert any("not a PNG" in e for e in co.errors)

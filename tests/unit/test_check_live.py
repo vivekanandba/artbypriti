@@ -26,7 +26,13 @@ class FakeResponse:
         return False
 
 
-def routes(mapping, default=200, body=b"<img src=/x_hu_1.jpg>"):
+# A healthy page now carries a CSP too (CON-SEC-004), so the default body includes one.
+# Tests that care about its absence override `body` explicitly.
+HEALTHY_BODY = (b"<meta http-equiv=Content-Security-Policy content=\"script-src 'self'\">"
+                b"<img src=/x_hu_1.jpg>")
+
+
+def routes(mapping, default=200, body=HEALTHY_BODY):
     """Build a urlopen stand-in that answers from a {url-substring: status} map."""
     def fake(req, timeout=None):
         url = req.full_url if hasattr(req, "full_url") else str(req)
@@ -98,6 +104,39 @@ class TestMain:
 
     def test_home_without_processed_variants_warns(self, cl, monkeypatch):
         monkeypatch.setattr(cl.urllib.request, "urlopen",
-                            routes({cl.MUST_404: 404}, 200, body=b"<html>no images</html>"))
+                            routes({cl.MUST_404: 404}, 200, body=b"<meta http-equiv=Content-Security-Policy content=\"script-src 'self'\">no images"))
         assert self._run(cl) == 0
         assert any("no processed image variants" in w for w in cl.warnings)
+
+
+class TestCspContract:
+    """CON-SEC-004: the policy must be asserted against the RUNNING site, not a template."""
+
+    def _run(self, cl, base="https://example.test"):
+        import sys
+        argv = sys.argv
+        sys.argv = ["check-live.py", base]
+        try:
+            return cl.main()
+        finally:
+            sys.argv = argv
+
+    def test_missing_csp_on_the_live_site_fails(self, cl, monkeypatch):
+        monkeypatch.setattr(cl.urllib.request, "urlopen",
+                            routes({cl.MUST_404: 404}, 200, body=b"<html>no policy _hu_</html>"))
+        assert self._run(cl) == 1
+        assert any("no Content-Security-Policy" in e for e in cl.errors)
+
+    def test_csp_present_and_strict_passes(self, cl, monkeypatch):
+        body = b"<meta http-equiv=Content-Security-Policy content=\"script-src 'self'\"> _hu_"
+        monkeypatch.setattr(cl.urllib.request, "urlopen",
+                            routes({cl.MUST_404: 404}, 200, body=body))
+        assert self._run(cl) == 0
+        assert any("script-src is restricted" in n for n in cl.notes)
+
+    def test_csp_that_stopped_restricting_scripts_warns(self, cl, monkeypatch):
+        body = b"<meta http-equiv=Content-Security-Policy content=\"script-src *\"> _hu_"
+        monkeypatch.setattr(cl.urllib.request, "urlopen",
+                            routes({cl.MUST_404: 404}, 200, body=body))
+        assert self._run(cl) == 0
+        assert any("no longer restricts script-src" in w for w in cl.warnings)

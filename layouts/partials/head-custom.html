@@ -1,16 +1,38 @@
-<!-- Custom <head> tags (e.g. analytics code) -->
+{{/*
+  Security headers as far as this host allows (CON-SEC-004), plus the PWA hooks from
+  spec 009-installable-gallery.
 
-{{/* Installable on a phone, and the shell opens without a connection (spec 009).
-     The worker is a static file: Hugo fingerprints the CSS and JS, so it caches
-     what the visitor loaded rather than naming hashed files it cannot know. */}}
+  GitHub Pages cannot send HTTP headers at all, so what can be declared is declared here in a
+  meta tag, and what cannot is recorded rather than passed over in silence. See
+  docs/security.md for the full statement and docs/incidents.md for what remains uncovered.
+
+  Measured against the built output rather than assumed:
+    - 0 inline <script> blocks        -> script-src can be strict 'self'. That is only true
+                                         because the worker registration below is external;
+                                         see the note on it.
+    - 0 inline <style> blocks         -> but 184 style= ATTRIBUTES on the home page, which
+                                         require 'unsafe-inline' for style-src. Moving those
+                                         into custom.css is the follow-up that would let this
+                                         go strict; it changes rendering, so it is its own change.
+    - no external origins, no data: URIs
+*/}}
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+
+{{/* Installable on a phone, and the shell opens without a connection (spec
+     009-installable-gallery). The worker is a static file: Hugo fingerprints the CSS and JS,
+     so it caches what the visitor loaded rather than naming hashed files it cannot know.
+
+     The registration is EXTERNAL, not inline. It arrived inline on main, and a strict
+     `script-src 'self'` blocks inline execution -- measured in a browser: 0 service-worker
+     registrations and one CSP violation. Worse, the registration swallows its own errors by
+     design ("an unregistered worker is a missing optimisation, never a broken page"), so the
+     PWA would have failed *silently*. Externalising keeps script-src strict and the worker
+     working; adding 'unsafe-inline' instead would gut the one directive most worth having.
+
+     The worker URL travels as a data attribute, so it stays Hugo-resolved (a future move to a
+     subpath keeps working) without putting executable code back in the page. */}}
 <link rel="manifest" href="{{ "manifest.webmanifest" | relURL }}" />
 <meta name="theme-color" content="#1a1a1a" />
-<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function () {
-      navigator.serviceWorker.register("{{ "sw.js" | relURL }}").catch(function () {
-        /* An unregistered worker is a missing optimisation, never a broken page. */
-      });
-    });
-  }
-</script>
+{{ $swRegister := resources.Get "js/sw-register.js" | fingerprint }}
+<script src="{{ $swRegister.RelPermalink }}" data-sw-url="{{ "sw.js" | relURL }}" defer></script>

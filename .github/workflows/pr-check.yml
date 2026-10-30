@@ -73,6 +73,41 @@ jobs:
           HUGO_ENVIRONMENT: production
         run: make check
 
+  security:
+    name: security gates
+    runs-on: ubuntu-latest
+    steps:
+      # Full history: the secret scan must see every commit, not the working tree. A
+      # working-tree hook would not have caught a secret that was committed and later
+      # removed, which is the shape most leaks actually have (CON-SEC-002).
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: "8.21.2"
+        run: |
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+          install -m 755 gitleaks "$RUNNER_TEMP/gitleaks" && echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Secret scan (full history)
+        run: gitleaks detect --source . --no-banner --redact --exit-code 1
+
+      # CON-SEC-003: the shipped tree and the build tree are audited separately, because a
+      # single count misleads in both directions. Below is the BUILD half. The shipped half
+      # lives in `make check`, which is the job that actually builds the site -- an assertion
+      # about published output belongs with the other output assertions, not here.
+      - name: Audit build-time Python
+        run: |
+          python3 -m pip install --quiet pip-audit
+          pip-audit --requirement requirements-dev.txt --strict
+
+      - name: Audit build-time Node
+        run: npm audit --audit-level=high
+
   visual:
     name: visual regression
     runs-on: ubuntu-latest
