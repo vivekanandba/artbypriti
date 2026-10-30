@@ -11,6 +11,7 @@ Exit:   0 = healthy (warnings allowed), 1 = something is wrong
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 DEFAULT_BASE = "https://artbypriti.com"
@@ -23,12 +24,25 @@ errors, warnings, notes = [], [], []
 
 
 def fetch(url, tries=3):
-    """Retry before reporting: one flaky response must not cry wolf (NFR-002)."""
+    """Retry before reporting: one flaky response must not cry wolf (NFR-002).
+
+    The scheme is checked rather than trusted. This takes a URL from argv, and urlopen is
+    happy to serve `file:///etc/passwd` -- so a tool whose whole job is "fetch this and tell
+    me what came back" would read local files on request (bandit B310, CWE-22). Low stakes
+    for a developer healthcheck, but the check is three lines and the alternative is
+    suppressing the finding, which records nothing.
+    """
+    if urllib.parse.urlparse(url).scheme not in ("http", "https"):
+        return None, b"refusing a non-HTTP(S) URL"
     last = None
     for attempt in range(tries):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "artbypriti-healthcheck"})
-            with urllib.request.urlopen(req, timeout=30) as r:
+            # B310 is suppressed on the next line only: the scheme is validated in the
+            # guard above, and bandit blacklists the CALL, so it cannot see a runtime
+            # check. Narrow and deliberate -- the finding was suppressed only after the
+            # hole it named was actually closed.
+            with urllib.request.urlopen(req, timeout=30) as r:  # nosec B310
                 return r.status, r.read()
         except urllib.error.HTTPError as e:
             return e.code, b""

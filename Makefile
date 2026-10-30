@@ -2,12 +2,21 @@
 # Visual regression additionally requires Docker. Run `make` for the list.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup serve build check check-all test coverage preflight live spec-required visual visual-update constitution-ids new clean
+.PHONY: help setup serve build check check-all test coverage preflight live spec-required visual visual-update constitution-ids lint new clean
 
 # Pinned so screenshots are comparable: the container fixes font rendering, which is the
 # only way CI and a developer machine agree (spec FR-006). Must match the @playwright/test
 # version in package.json.
 PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v1.62.1-noble
+
+# Neither linter is installed on this machine, and neither is guaranteed on the runner, so
+# both are pinned and run in a container / an ephemeral env (CON-VER-004: run the check where
+# it will actually run, and make "where" the same everywhere).
+SHELLCHECK_IMAGE := koalaman/shellcheck:v0.10.0
+BANDIT_VERSION   := 1.9.2
+BANDIT_IMAGE     := python:3.12-slim
+SHELL_FILES      := scripts/check-local-gates.sh scripts/preflight.sh \
+                    .githooks/commit-msg .githooks/pre-commit .githooks/pre-push
 DOCKER_RUN = docker run --rm -v "$(CURDIR):/work" -w /work \
 	--user "$(shell id -u):$(shell id -g)" \
 	-e HOME=/tmp -e npm_config_cache=/tmp/.npm -e CI \
@@ -67,6 +76,16 @@ check: test ## Everything fast: unit tests, specs, front matter, strict build, o
 	python3 scripts/check-output.py public
 	python3 scripts/check-shipped-deps.py public
 
+lint: ## Static analysis of the gates' own code: shellcheck + bandit (needs Docker and uv)
+	docker run --rm -v "$(CURDIR):/mnt" --user "$(shell id -u):$(shell id -g)" \
+	  $(SHELLCHECK_IMAGE) --severity=style $(SHELL_FILES)
+	@echo "shellcheck: clean"
+	docker run --rm -v "$(CURDIR):/work" -w /work --user "$(shell id -u):$(shell id -g)" \
+	  -e HOME=/tmp $(BANDIT_IMAGE) bash -c \
+	  'pip install --quiet --no-warn-script-location bandit==$(BANDIT_VERSION) && \
+	   python -m bandit -r scripts/ -ll -q'
+	@echo "bandit (medium+): clean"
+
 constitution-ids: ## Refresh docs/constitution-ids.txt from the local constitution mirror
 	@test -f $(MIRROR) || { \
 	  echo "No constitution mirror at $(MIRROR)."; \
@@ -78,7 +97,7 @@ constitution-ids: ## Refresh docs/constitution-ids.txt from the local constituti
 spec-required: ## Check this branch records intent (spec or No-Spec:). BASE=main by default
 	python3 scripts/check-specs.py --diff-base $(or $(BASE),main)
 
-check-all: check visual ## Every gate, including visual regression (needs Docker)
+check-all: check lint visual ## Every gate, including visual regression (needs Docker)
 
 visual: build ## Visual regression against committed baselines (needs Docker)
 	$(DOCKER_RUN) bash -c 'npm ci --no-audit --no-fund >/dev/null && npx playwright test'

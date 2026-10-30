@@ -4,6 +4,7 @@
 // `!important` rules. Nothing else detects when one of those cascades somewhere unintended.
 // These baselines record how the site looks today; they do not endorse the design.
 const { test, expect } = require("@playwright/test");
+const { settle } = require("./helpers");
 
 // One page per distinct layout. Adding more artwork pages would multiply baselines without
 // covering new rendering paths — every artwork page uses the same template.
@@ -27,40 +28,6 @@ const PAGES = [
   { name: "request", path: "/request/", fullPage: true, why: "prose layout, no images" },
   { name: "category", path: "/categories/acrylic-on-canvas/", fullPage: false, why: "taxonomy term listing" },
 ];
-
-/**
- * Make image loading deterministic before screenshotting.
- *
- * The theme lazy-loads via lazysizes (`data-src` plus a 300ms opacity transition), which
- * only unveils images near the viewport. Measured on the home page: after scrolling the
- * full height and returning to the top, 7 of 46 images still had no `src` — lazysizes had
- * dropped them as out of range. A `fullPage` screenshot then captures blank tiles, and
- * *which* tiles are blank varies run to run. That is precisely the flakiness NFR-002
- * forbids, so this promotes every `data-src` to `src` directly and waits for decode
- * instead of negotiating with the lazy-loader's heuristics.
- *
- * The trade-off is explicit: these screenshots verify layout, colour, and typography, not
- * the lazy-loading mechanism. That mechanism is asserted separately below.
- */
-async function settle(page) {
-  await page.evaluate(() => {
-    for (const img of Array.from(document.images)) {
-      const src = img.getAttribute("data-src");
-      const srcset = img.getAttribute("data-srcset");
-      if (src) img.setAttribute("src", src);
-      if (srcset) img.setAttribute("srcset", srcset);
-      // custom.css hides `.lazyload` at opacity 0 and only reveals `.lazyloaded`.
-      img.className = img.className.replace(/\blazyload(ing)?\b/g, "lazyloaded");
-    }
-  });
-
-  await page.waitForFunction(
-    () => Array.from(document.images).every((img) => img.complete && img.naturalWidth > 0),
-    null,
-    { timeout: 30_000 },
-  );
-  await page.waitForLoadState("networkidle");
-}
 
 for (const { name, path, fullPage, why } of PAGES) {
   test(`${name} renders unchanged (${why})`, async ({ page }) => {
