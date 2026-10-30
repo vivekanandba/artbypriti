@@ -3,17 +3,37 @@
   <div class="gallery-single-image-wrapper">
     {{ $images := slice }}
     {{ range $image := where (.Resources.ByType "image") "Params.hidden" "ne" true }}
-      {{/* MEASURED, and it corrected an earlier assumption: on this page the figure
-           shrink-wraps (flex column, align-items:center), so the image renders at its
-           NATURAL width — it is never stretched. Sizing it by width would therefore not
-           sharpen anything; it would enlarge the painting and make pages 24-45% taller,
-           which is a design decision and not this change's to make (spec NFR-003).
+      {{/* Sized by WIDTH to the 1000px column, capped at the master (spec 011-larger-artwork).
 
-           So the displayed image is left exactly as it was, and the extra resolution is
-           offered only as a high-DPI candidate: `sizes` states the true CSS width, and the
-           1600px lightbox variant — which already exists — serves 2x screens at no extra
-           payload (spec FR-005). */}}
-      {{ $thumbnail := $image.Filter (slice images.AutoOrient (images.Process "fit 1000x1000")) }}
+           The figure shrink-wraps (flex column, align-items:center), so the image renders at
+           its natural width and is never stretched — measured. `fit 1000x1000` constrained the
+           LONGEST edge, which for a portrait painting is the height, so portraits came out
+           577-792px wide in a 1000px column: 24 of 47 images under-filling the page, while
+           landscape and square ones already filled it exactly.
+
+           Spec 006 found this and deliberately left it alone, because enlarging the paintings
+           is a design decision rather than a defect fix. The owner has since made that call.
+
+           Three things carry the correctness, in this order:
+             - AutoOrient BEFORE measuring, so an EXIF-rotated master is capped on the
+               dimensions the visitor sees rather than the ones on disk (FR-003);
+             - math.Min against the master's own width, so Hugo is never asked to upscale —
+               the artist's resolution is the ceiling (FR-002, Constitution III);
+             - "resize <w>x" with the height omitted, which keeps the aspect ratio.
+
+           $oriented exists only to MEASURE. Deriving the variant from it instead
+           (`$oriented.Resize ...`) resamples an already-processed image rather than the
+           master, and it was measured: 0.15 dB worse against a Lanczos reference, and it
+           changed the bytes of all 23 landscape and square variants that this change is
+           supposed to leave alone. Filtering the master in ONE pipeline keeps those outputs
+           byte-identical and takes the extra decode out of the build.
+
+           srcset/sizes below need no change: both derive from $thumbnail's real dimensions, so
+           they follow the new width on their own. The 1600px lightbox variant still serves as
+           the retina candidate at no extra payload (FR-005). */}}
+      {{ $oriented := $image.Filter images.AutoOrient }}
+      {{ $width := int (math.Min 1000 $oriented.Width) }}
+      {{ $thumbnail := $image.Filter (slice images.AutoOrient (images.Process (printf "resize %dx" $width))) }}
       {{ $full := $image.Filter (slice images.AutoOrient (images.Process "fit 1600x1600")) }}
       {{ $srcset := slice (printf "%s %dw" $thumbnail.RelPermalink $thumbnail.Width) }}
       {{ if gt $full.Width $thumbnail.Width }}

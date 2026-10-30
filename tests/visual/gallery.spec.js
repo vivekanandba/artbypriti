@@ -8,6 +8,12 @@ const { test, expect } = require("@playwright/test");
 // One page per distinct layout. Adding more artwork pages would multiply baselines without
 // covering new rendering paths — every artwork page uses the same template.
 //
+// With one exception, and it is an orientation rather than a layout: the artwork image is
+// sized by WIDTH to a 1000px column (spec 011), so a portrait painting and a landscape one
+// take different branches of that cap. `/olive/` is landscape and fills the column already;
+// every portrait page is the half that spec 011 changed, and when it shipped, not one of them
+// had a baseline. `/ganesha-with-lines/` covers that half.
+//
 // `fullPage` is deliberate per page, not a default. A full-page capture of the 46-image home
 // grid is a 6.7 MB PNG, and these baselines are committed: at that size a few redesigns would
 // undo the repository slimming this project just did (Principle IV). The listing pages are
@@ -16,6 +22,7 @@ const { test, expect } = require("@playwright/test");
 const PAGES = [
   { name: "home", path: "/", fullPage: false, why: "album-card grid, the only page using home.html" },
   { name: "artwork", path: "/olive/", fullPage: true, why: "single.html: image, dimensions caption, category link" },
+  { name: "artwork-portrait", path: "/ganesha-with-lines/", fullPage: true, why: "single.html with a portrait master: the half the 1000px width cap actually moves" },
   { name: "about", path: "/about/", fullPage: true, why: "prose layout with a portrait resource" },
   { name: "request", path: "/request/", fullPage: true, why: "prose layout, no images" },
   { name: "category", path: "/categories/acrylic-on-canvas/", fullPage: false, why: "taxonomy term listing" },
