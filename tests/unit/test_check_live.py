@@ -66,6 +66,38 @@ class TestFetch:
         assert status is None
         assert len(calls) == 3, "must retry before crying wolf (NFR-002)"
 
+    @pytest.mark.parametrize("url", [
+        "file:///etc/passwd",
+        "ftp://example.com/x",
+        "gopher://example.com/",
+        "data:text/plain,hello",
+    ])
+    def test_non_http_schemes_are_refused_without_fetching(self, cl, monkeypatch, url):
+        """This takes a URL from argv and urlopen will happily serve file:// -- so a tool
+        whose job is "fetch this and show me" would read local files on request
+        (bandit B310, CWE-22, spec 014 FR-008).
+
+        The assertion is that urlopen was NEVER CALLED, recorded in a list. An earlier
+        version of this test raised from a sentinel urlopen instead -- which could not
+        fail, because fetch() catches broad Exception for network errors and the sentinel's
+        own message contained the word the assertion grepped for. Mutating the guard to
+        `if False:` is what exposed it (CON-PROC-005).
+        """
+        opened = []
+        monkeypatch.setattr(
+            cl.urllib.request, "urlopen", lambda req, timeout=None: opened.append(req)
+        )
+        monkeypatch.setattr(cl.time, "sleep", lambda s: None)
+        status, body = cl.fetch(url)
+        assert opened == [], f"fetch() opened {url} rather than declining it"
+        assert status is None
+        assert b"non-HTTP" in body
+
+    def test_http_and_https_are_still_allowed(self, cl, monkeypatch):
+        monkeypatch.setattr(cl.urllib.request, "urlopen", routes({}, 200, b"ok"))
+        assert cl.fetch("http://x/")[0] == 200
+        assert cl.fetch("https://x/")[0] == 200
+
 
 class TestMain:
     def _run(self, cl, base="https://example.test"):

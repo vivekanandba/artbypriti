@@ -1,6 +1,6 @@
 # Tests
 
-Four gates, all runnable locally and all run by CI on every pull request. Spec:
+Five gates, all runnable locally and all run by CI on every pull request. Spec:
 [`specs/001-quality-gates/spec.md`](../specs/001-quality-gates/spec.md).
 
 | Gate | Command | Guards |
@@ -8,9 +8,32 @@ Four gates, all runnable locally and all run by CI on every pull request. Spec:
 | Content validation | `python3 scripts/check-content.py` | Front matter: declared files exist, captions well-formed |
 | Output assertions | `python3 scripts/check-output.py public` | The **built site**: no published masters, payload budget, every artwork renders an image + caption, no broken internal links |
 | Citation check | `python3 scripts/check-citations.py` | That every `CON-*` rule this repo cites actually **exists** upstream ([spec 012](../specs/012-citation-guard/spec.md)) |
-| Visual regression | `make visual` | How pages actually **look** |
+| Visual regression | `make visual` | How pages actually **look** — at 1280px, and (spec 014) at 375px and 768px, plus accessibility and the click-through |
+| Static analysis | `make lint` | The gates' **own** code: `shellcheck` on the shell, `bandit` on the Python |
 
-`make check` runs the first three (seconds). `make check-all` adds visual regression (needs Docker).
+`make check` runs the first three (seconds). `make check-all` adds `lint` and visual regression
+(both need Docker).
+
+### What lives in tests/visual/
+
+| File | Covers |
+| --- | --- |
+| `gallery.spec.js` | Desktop baselines, one per layout |
+| `responsive.spec.js` | 375px and 768px baselines, horizontal-overflow, and which variant `srcset` actually selects |
+| `a11y.spec.js` | axe-core at WCAG 2.0/2.1 A + AA, plus direct accessible-name assertions |
+| `journeys.spec.js` | The click-through and the 404 page |
+| `helpers.js` | `settle()` — shared, because its comment records a real investigation and a copy would drift |
+
+**axe is necessary, not sufficient.** `alt=""` on a painting passes every WCAG rule — an empty alt
+marks an image *decorative*, which is right in general and wrong where the image is the whole page.
+Proven by planting it and watching axe stay green. That is why the accessible name is also asserted
+directly, and why a new a11y rule should be checked against a planted defect before it is trusted.
+
+**Both linters run in containers**, pinned, because neither is installed on the development VM and
+bandit 1.9.2 needs Python ≥ 3.10 while the self-hosted runners are Ubuntu 20.04 / python3 3.8.
+`make lint` runs the identical command CI runs (`CON-VER-004`). bandit gates at **medium and
+above**: the 224 Low findings are `assert` in tests, where asserting *is* the test, and literal-argv
+`subprocess` calls — an allowlist that long would be read by nobody.
 
 The citation check reads a **vendored** list, `docs/constitution-ids.txt`, because CI only gets this
 repository and cannot see `~/.claude` (`CON-VER-004`). Refresh it with `make constitution-ids`. An ID
