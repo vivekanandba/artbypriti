@@ -211,10 +211,111 @@ def check_no_upscaling(built, content_dir="content"):
     notes.append(f"{checked} displayed images checked against their slot width")
 
 
+def check_csp_matches_the_markup(built):
+    """A strict script-src and an inline <script> cannot both be right.
+
+    The site declares `script-src 'self'`, which blocks inline execution. When the PWA work
+    added an inline service-worker registration, the two met and the worker silently stopped
+    registering -- silently, because registration swallows its own errors by design. Nothing
+    failed; the feature was simply gone.
+
+    So the two are checked against each other here rather than trusted to stay compatible.
+    """
+    offenders, pages, policed = [], 0, 0
+    for dp, _, fns in os.walk(built):
+        for fn in fns:
+            if not fn.endswith(".html"):
+                continue
+            html = open(os.path.join(dp, fn), encoding="utf-8", errors="replace").read()
+            if not html.strip():
+                continue
+            pages += 1
+            # Hugo minifies attribute quotes away, so match both spellings.
+            strict = ("script-src 'self'" in html) or ("script-src &#39;self&#39;" in html)
+            if not strict:
+                continue
+            policed += 1
+            # An inline block is <script> with no src= before the closing bracket.
+            for tag in re.findall(r"<script\b[^>]*>", html):
+                if "src=" not in tag:
+                    offenders.append(os.path.relpath(os.path.join(dp, fn), built))
+                    break
+
+    if offenders:
+        errors.append(
+            f"{len(offenders)} page(s) carry an inline <script> while declaring "
+            f"script-src 'self' -- the browser will refuse to run it, and a registration that "
+            f"catches its own errors fails silently. Move it to assets/js/ and load it with a "
+            f"src. First: {offenders[0]}"
+        )
+    elif policed:
+        notes.append(f"{policed} page(s) declare script-src 'self' and carry no inline <script>")
+
+
 def check_expected_files(built):
     for rel in ("index.html", "about/index.html", "request/index.html", "sitemap.xml", "robots.txt"):
         if not os.path.exists(os.path.join(built, rel)):
             errors.append(f"expected output missing: {rel}")
+
+
+def check_installable(built):
+    """The site is installable and its icons are what they claim to be (spec 009).
+
+    The manifest, the worker and both icons must exist in the built output, every
+    icon the manifest names must be present, and a PNG icon must really be a PNG:
+    the repo's apple-touch-icon.png and favicon.png are JPEG data with a .png
+    name, which browsers sniff past but a manifest declaring image/png does not.
+    """
+    import json
+
+    manifest_rel = "manifest.webmanifest"
+    manifest_path = os.path.join(built, manifest_rel)
+    if not os.path.exists(manifest_path):
+        errors.append(f"expected output missing: {manifest_rel}")
+        return
+    if not os.path.exists(os.path.join(built, "sw.js")):
+        errors.append("expected output missing: sw.js")
+
+    with open(manifest_path, encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    sizes = {icon.get("sizes") for icon in manifest.get("icons", [])}
+    for required in ("192x192", "512x512"):
+        if required not in sizes:
+            errors.append(f"manifest declares no {required} icon; a phone will not install it")
+    for icon in manifest.get("icons", []):
+        rel = icon["src"].lstrip("/")
+        path = os.path.join(built, rel)
+        if not os.path.exists(path):
+            errors.append(f"manifest names {icon['src']}, which is not in the built site")
+            continue
+        if icon.get("type") == "image/png":
+            with open(path, "rb") as fh:
+                if fh.read(8) != b"\x89PNG\r\n\x1a\n":
+                    errors.append(f"{icon['src']} is declared image/png but is not a PNG")
+
+    index = os.path.join(built, "index.html")
+    if os.path.exists(index):
+        with open(index, encoding="utf-8") as fh:
+            html = fh.read()
+        if "rel=manifest" not in html.replace('rel="manifest"', "rel=manifest"):
+            errors.append("index.html does not link the manifest")
+        # Follow the registration rather than grepping for a word. This assertion first
+        # looked for "serviceWorker" in the HTML, which held only while the registration was
+        # inline; moving it to an external file for the CSP (spec 010) would have failed it
+        # even though the worker registers correctly. Checking the chain -- tag, script,
+        # worker file -- is both accurate and stronger than the string it replaces.
+        m = re.search(r'<script[^>]*\bsrc=["\']?([^"\'> ]+)[^>]*\bdata-sw-url=["\']?([^"\'> ]+)', html)
+        if m:
+            script_rel, sw_rel = m.group(1).lstrip("/"), m.group(2).lstrip("/")
+            script_path = os.path.join(built, script_rel)
+            if not os.path.exists(script_path):
+                errors.append(f"index.html loads {m.group(1)} to register the worker, but it is not in the build")
+            elif "serviceWorker.register" not in open(script_path, encoding="utf-8", errors="replace").read():
+                errors.append(f"{m.group(1)} is wired up as the registration but never calls serviceWorker.register")
+            if not os.path.exists(os.path.join(built, sw_rel)):
+                errors.append(f"the registration points at {m.group(2)}, which is not in the built site")
+        elif "serviceWorker" not in html:
+            errors.append("index.html does not register the service worker")
 
 
 def check_internal_links(built):
@@ -262,7 +363,9 @@ def main():
     check_payload(built)
     check_artwork_pages(built, artworks)
     check_no_upscaling(built, content)
+    check_csp_matches_the_markup(built)
     check_expected_files(built)
+    check_installable(built)
     check_internal_links(built)
 
     for n in notes:

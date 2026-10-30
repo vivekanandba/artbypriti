@@ -1,6 +1,6 @@
 # Tasks: Security Gates
 
-**Branch**: `009-security-gates` | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
+**Branch**: `009-security-gates` (renumbered to spec 010) | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
 
 ## Phase 0 — Measure before designing
 
@@ -52,3 +52,30 @@
 - [ ] **T017** `shellcheck` / `bandit` — part of the remaining test-strategy work.
 - [ ] **T018** Characterise why the lightbox did not open in the probe. Pre-existing, unrelated to
       the CSP, but currently unverified either way.
+
+## Phase 4 — Reconciling with the PWA (spec 009-installable-gallery)
+
+- [x] **T019** Renumber 009 → 010. `009-installable-gallery` landed on main first and took the
+      number; two specs sharing one number is the same collision this project has already hit
+      with constitution rule IDs.
+- [x] **T020** **The CSP would have silently broken the PWA.** `009` registers its service worker
+      from an *inline* `<script>`, and `script-src 'self'` blocks inline execution. Measured in a
+      browser before merging: **0 service-worker registrations, 1 CSP violation**. Because the
+      registration catches its own errors by design ("an unregistered worker is a missing
+      optimisation, never a broken page"), nothing would have reported the loss.
+- [x] **T021** Move the registration to `assets/js/sw-register.js`, fingerprinted, with the worker
+      URL carried on a `data-sw-url` attribute so Hugo still resolves it. Re-measured: **1
+      registration, 0 violations**. Rejected the easy fix of adding `'unsafe-inline'`, which would
+      gut the single most valuable directive.
+- [x] **T022** Extend the layer that missed it (`CON-PROC-003`): `check_csp_matches_the_markup`
+      fails any page that declares `script-src 'self'` while carrying an inline `<script>`.
+      Proven by reintroducing the exact defect.
+- [x] **T023** Rewrite `009`'s own assertion, which grepped index.html for the word
+      "serviceWorker" — true only while the registration was inline, so it failed a *correct*
+      site. It now follows the chain: tag → script exists → script really calls
+      `serviceWorker.register` → worker file exists. Stronger than the string it replaces, and
+      still passes the inline form.
+- [x] **T024** Cover both with unit tests (16 new). *The shared `site` fixture was extended by
+      009 to ship a complete PWA, so "missing file" cases had to delete what the fixture provided
+      rather than decline to add it — two tests failed until that was understood.* Coverage back
+      to **99%**.

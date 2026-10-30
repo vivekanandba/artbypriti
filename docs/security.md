@@ -42,7 +42,12 @@ object-src 'none'; base-uri 'self'; form-action 'none'
 Measured against the **built output**, not assumed from templates:
 
 - **0 inline `<script>` blocks** → `script-src 'self'` is strict, which is the directive that
-  matters most.
+  matters most. This is a property the site has to *keep*, not one it happens to have: the PWA
+  work (spec 009) arrived with an inline service-worker registration, and the two together meant
+  **0 workers registered and one CSP violation** — silently, because registration swallows its own
+  errors. The registration now lives in `assets/js/sw-register.js`, and
+  `check_csp_matches_the_markup` fails any page that declares `script-src 'self'` while carrying
+  an inline script.
 - **0 inline `<style>` blocks**, but **184 `style=` attributes** on the home page alone, emitted by
   the theme's `album-card.html`. Attributes cannot be hashed practically, so `style-src` needs
   `'unsafe-inline'`. **This is the one weak directive**, and the fix is known: move those attributes

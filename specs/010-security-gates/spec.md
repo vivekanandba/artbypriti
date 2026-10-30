@@ -1,6 +1,6 @@
 # Feature Specification: Security Gates (CON-SEC-002/003/004)
 
-**Feature Branch**: `009-security-gates`
+**Feature Branch**: `009-security-gates` (renumbered to spec 010)
 
 **Created**: 2026-10-10
 

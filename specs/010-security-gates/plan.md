@@ -1,6 +1,6 @@
 # Implementation Plan: Security Gates
 
-**Branch**: `009-security-gates` | **Date**: 2026-10-10 | **Spec**: [spec.md](./spec.md)
+**Branch**: `009-security-gates` (renumbered to spec 010) | **Date**: 2026-10-10 | **Spec**: [spec.md](./spec.md)
 
 ## Summary
 
