@@ -83,6 +83,14 @@ make new SLUG=my-painting      # scaffold an artwork bundle
 - **The grid branch of `layouts/partials/gallery.html` never renders.** The home page uses the
   theme's `home.html` → `album-card.html`, and there are no image-bearing section lists. Its
   `site.Params.Author` schema.org block is therefore dead code.
+  - That branch holds the only `id="gallery"` on the site, and **two** theme modules key off it:
+    `lightbox.js` and `gallery.js`. So neither ever ran. Spec 016 fixed the lightbox with
+    `assets/js/artwork-lightbox.js` (scoped to the artwork section) plus a project override of
+    `assets/js/main.js` that drops both dead modules. **Do not "fix" it by adding `id="gallery"`**
+    — that was tried, and `gallery.js` forces the painting into a 288 px justified row; five
+    baselines failed.
+  - Because `assets/js/main.js` is now a project override, a theme update that adds a module
+    there will **not** take effect until it is added to our copy. See `themes/gallery/UPSTREAM.md`.
 - **Full-resolution masters are not published** (`publishResources: false` cascades from
   `content/_index.md`). Keep it that way: they were 116 MB of a 140 MB deploy and no page linked
   them.

@@ -1,5 +1,23 @@
 # Handoff: four amendment proposals this repo raised
 
+> **Superseded 2026-10-31 — the edit has been made.** It is now
+> [vivekanandba/fleet#46](https://github.com/vivekanandba/fleet/pull/46): proposals only, for the
+> owner to adopt. Two recommendations below turned out to be **wrong**, and the PR corrects them.
+> They are left standing rather than quietly rewritten, because a corrected recommendation is more
+> useful than one that was never seen to be wrong:
+>
+> - **`CON-PROC-014` is not free.** It is claimed by the open
+>   `fleet/label-secrets-and-four-lessons` branch ("A gate that cannot run is not a gate"), so the
+>   renumbering collided on its way to fixing a collision. `verify-from-the-commit` uses
+>   **`CON-PROC-015`**.
+> - **`CON-PROC-010` is safe to keep**, contrary to the caution below.
+>   `git log -S'CON-PROC-010' -- CONSTITUTION.md` returns nothing — it has never named a rule, so
+>   it is a skipped number rather than a retired one, and `history-is-additive` keeps it.
+>
+> The PR also carries the security-remediation exception, a new `CON-VER-013` (a conformance tool
+> passing is not the property you need), and a process change so proposals stop reserving IDs at
+> all — that collision has now happened three times.
+
 **Status: not adopted, and not adoptable from here.** These are proposals in
 `vivekanandba/fleet` (`proposals/`), raised from incidents in this repository. They need an edit
 in **that** repo; this document states exactly what, so the work does not have to be re-derived.

@@ -14,10 +14,15 @@
 # It warns on an entry nothing cites, because a dead exemption is how an allowlist quietly
 # becomes a blanket.
 #
-# Both entries below are waiting on one edit in the fleet repo. What that edit is, exactly,
-# is written down in docs/constitution-handoff.md so it does not have to be re-derived.
+# All of these are in flight as vivekanandba/fleet#46 -- proposals only; adoption stays a
+# separate human decision. docs/constitution-handoff.md has the detail.
+#
+# Note how fragile these numbers are: two have already had to change because the ID was claimed
+# elsewhere while the proposal waited. That is itself one of the proposals in #46 -- a proposal
+# should reserve no number at all, and the reviewer should assign it at adoption.
 
-CON-DATA-006  Proposed by this repo in specs/005-adopt-house-standards (never fabricate domain content); awaiting fleet review, ID still free.
-CON-PROC-010  Proposed by this repo in specs/005-adopt-house-standards (history is additive); pending renumbering in the handoff, since it also needs a security-remediation exception.
-CON-PROC-014  Recommended renumbering for the verify-from-the-commit proposal, whose CON-PROC-009 was taken by the fleet; see docs/constitution-handoff.md.
-CON-PROC-015  Recommended renumbering for the history-is-additive proposal, which also needs a security-remediation exception; see docs/constitution-handoff.md.
+CON-DATA-006  Proposed by this repo (never fabricate domain content); CON-DATA defines 001-005, so 006 is genuinely next.
+CON-PROC-010  Proposed by this repo (history is additive, now carrying a security-remediation exception). Verified safe to use: `git log -S` shows it has never named a rule, so it is a skipped number rather than a retired one.
+CON-PROC-014  NOT ours, and not free: claimed by the open fleet/label-secrets-and-four-lessons branch ("A gate that cannot run is not a gate"). Cited only where this repo records why it could not be used.
+CON-PROC-015  Proposed by this repo (verify from the commit), after CON-PROC-009 was adopted for another rule and 014 turned out to be taken too.
+CON-VER-013   Proposed by this repo (a conformance tool passing is not the property you need), from the axe gate that stayed green on a planted alt="".

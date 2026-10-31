@@ -19,7 +19,8 @@ below.
 | [010](./010-security-gates/) | Security gates (CON-SEC-002/003/004) | Implemented | PR #26 |
 | [011](./011-larger-artwork/) | Show the paintings larger on their own page | Implemented | PR #28 |
 | [012](./012-citation-guard/) | Guard the constitution citations against rot | Implemented | PR #29 |
-| [014](./014-wider-testing/) | Accessibility, responsive and journey tests; lint the gates | In review | this PR |
+| [014](./014-wider-testing/) | Accessibility, responsive and journey tests; lint the gates | Implemented | PR #31 |
+| [016](./016-lightbox/) | Make the lightbox work | In review | this PR |
 
 **Two numbering notes, recorded rather than tidied away:**
 
@@ -27,6 +28,8 @@ below.
   deferred behind `006`; by the time it was written the branch had become `011`, and renumbering
   shipped specs to close a gap would break every citation pointing at them. The gap is an artefact
   of planning order, not a missing document.
+- **There is no `015` either**, for the same reason as `013`: it was a branch name for a
+  docs-only change (PR #32, recording one transferable lesson).
 - **There is no `013`.** It was the branch name for a docs-only change (PR #30: the artist's
   open questions, a withdrawn claim, and the constitution handoff). Those paths need no spec,
   so the number was used by a branch and never by a specification.
