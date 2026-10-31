@@ -65,7 +65,11 @@ not change.
 3. **Given** the lightbox is open, **When** the image is shown, **Then** it is a Hugo-derived
    variant — the full-resolution master is not published and must stay unreachable.
 4. **Given** the painting has `dimensions` in front matter, **When** the lightbox opens, **Then**
-   the caption shows them.
+   the caption shows them. *(Not met when this spec first merged — the caption plugin fell back
+   to the image's `alt`, i.e. the title, and no test covered caption content. Fixed and
+   asserted in a follow-up; see `tasks.md` T022–T025.)*
+5. **Given** a painting with **no** dimensions, **When** the lightbox opens, **Then** the
+   caption falls back to its title rather than rendering an empty bar.
 
 ---
 

@@ -74,6 +74,30 @@
 - [x] **T020** `make check-all` → exit 0.
 - [x] **T021** Still zero inline `<script>`, so `script-src 'self'` stays strict.
 
+## A claim that shipped unchecked (follow-up, 2026-10-31)
+
+- [x] **T022** **FR-003 was not actually met when 016 merged.** The spec said the lightbox shows
+  the dimensions caption, and the markup carried `data-pswp-caption="(15 cm X 15 cm)"` correctly —
+  but the caption plugin defaults to `.pswp-caption-content` and then falls back to the image's
+  `alt`, which on this site is the **title**. The deployed lightbox read "Olive".
+- [x] **T023** Found by **looking at the deployed site**, not by a test. Every gate was green:
+  no assertion covered caption *content*, so the acceptance criterion was written and never
+  checked. Exactly the failure `CON-PROC-002` names — a guarantee stated in a spec is worth
+  nothing until something checks it.
+- [x] **T024** Fixed by passing `captionContent` explicitly, reading `data-pswp-caption` and
+  falling back to the title for the three paintings with no dimensions yet
+  (`docs/artist-requests.md`) — an empty bar is worse than a title.
+- [x] **T025** Added the two assertions that should have existed: the caption equals the declared
+  dimensions, and the no-dimensions page falls back to its title. Mutation-tested by removing
+  `captionContent` and watching the first go red.
+
+- [x] **T026** The mid-animation Escape test turned out to be **flaky** — green twice, red once in
+  a full `make check-all`. Rewritten rather than re-run (`CON-VER-008`): whether a single press
+  lands is not a property that holds, so the test now asserts what a visitor experiences — press
+  Escape early and keep pressing, and you are out within 8 seconds. Three consecutive full runs
+  green. Recorded as incident #16, along with the fact that a `tail -5` on the log nearly hid the
+  failure (`CON-VER-001`).
+
 ## Deliberately not done
 
 - **Patching the theme.** Vendored; the whole change is project overrides.
