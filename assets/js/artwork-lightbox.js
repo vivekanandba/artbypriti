@@ -72,10 +72,25 @@ if (gallery && gallery.querySelector(".gallery-item")) {
   });
 
   // The caption carries the painting's dimensions, from data-pswp-caption.
+  //
+  // captionContent has to be given explicitly. The plugin defaults to `.pswp-caption-content`
+  // and then falls back to the image's alt -- which on this site is the TITLE, so the first
+  // version of this shipped showing "Olive" instead of "(15 cm X 15 cm)". The markup was right
+  // all along; nothing read it. Caught by looking at the deployed site, not by a test, which is
+  // why there is now a test (spec 016 FR-003).
+  //
+  // Falls back to the alt for the three paintings whose front matter has no dimensions yet
+  // (docs/artist-requests.md) -- a title beats an empty bar.
   new PhotoSwipeDynamicCaption(lightbox, {
     mobileLayoutBreakpoint: 700,
     type: "auto",
     mobileCaptionOverlapRatio: 1,
+    captionContent: (slide) => {
+      const el = slide?.data?.element;
+      const dimensions = el?.dataset?.pswpCaption;
+      if (dimensions && dimensions.trim()) return dimensions.trim();
+      return (el?.querySelector("img")?.getAttribute("alt") || "").trim();
+    },
   });
 
   lightbox.init();
