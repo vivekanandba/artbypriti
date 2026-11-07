@@ -1,0 +1,46 @@
+name: Report a scheduled run's outcome
+
+# Called by every scheduled workflow, as its own job after the work: a failure
+# opens or comments on one issue, a later success closes it. Ported from
+# trailward #79 on 2026-11-07, after health.yml failed four Mondays running with
+# nobody told. A separate job, so the work job never holds an issues-write token.
+on:
+  workflow_call:
+    inputs:
+      title:
+        description: The issue title; matched exactly.
+        required: true
+        type: string
+      result:
+        description: The work job's result (needs.<job>.result).
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    # A few gh calls; the default is 6 hours.
+    timeout-minutes: 5
+    # One writer per issue title, so two quick failures cannot both open an
+    # issue. Job-level: a top-level group in a called workflow shares the caller's.
+    concurrency:
+      group: report-failure-${{ inputs.title }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: scripts/report-failure.sh
+          sparse-checkout-cone-mode: false
+      - name: Open, update or close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Through env, never spliced into the script text.
+          TITLE: ${{ inputs.title }}
+          RESULT: ${{ inputs.result }}
+        run: bash scripts/report-failure.sh "$TITLE" "$RESULT"

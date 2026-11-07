@@ -15,6 +15,11 @@ on:
 permissions:
   contents: read
 
+# A weekly job: a second run waits rather than racing the first.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 defaults:
   run:
     shell: bash
@@ -23,6 +28,8 @@ jobs:
   live:
     name: live site
     runs-on: ubuntu-latest
+    # Under a minute in every run seen; the default is 6 hours.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - name: Check the deployed site
@@ -31,6 +38,8 @@ jobs:
   suite:
     name: suite still current
     runs-on: ubuntu-latest
+    # Under 2 min in every run seen, cold build included; the default is 6 hours.
+    timeout-minutes: 20
     env:
       HUGO_VERSION: 0.147.8
     steps:
@@ -39,6 +48,11 @@ jobs:
         run: |
           wget -O ${{ runner.temp }}/hugo.deb https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb \
           && sudo dpkg -i ${{ runner.temp }}/hugo.deb
+      # `make check` runs `make test`, which needs coverage and pytest (#24). Without
+      # this the job failed every Monday from 2026-10-12 with "No module named
+      # coverage" (tests/unit/test_regressions.py now guards every such job).
+      - name: Install the gates' own requirements
+        run: python3 -m pip install --quiet -r requirements-dev.txt
       # Deliberately NOT cached: a scheduled run is the one place a cold build is worth
       # having, because it proves the site still builds from nothing.
       - name: Full gates from a cold start
@@ -53,3 +67,18 @@ jobs:
           path: test-results/
           retention-days: 14
           if-no-files-found: ignore
+
+  # A red scheduled run emails only whoever last edited the cron: file a failure,
+  # close the issue on the next success.
+  report-failure:
+    needs: [live, suite]
+    # Only main's runs speak for production; a dispatch on a branch does not.
+    if: always() && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/report-failure.yml
+    with:
+      title: "Weekly health check is failing"
+      # Either job failing is the health check failing.
+      result: ${{ (needs.live.result == 'failure' || needs.suite.result == 'failure') && 'failure' || ((needs.live.result == 'cancelled' || needs.suite.result == 'cancelled') && 'cancelled' || needs.suite.result) }}

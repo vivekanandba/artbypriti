@@ -113,6 +113,23 @@ class TestSiteInvariants:
         toml = (ROOT / "hugo.toml").read_text(encoding="utf-8")
         assert "[caches.images]" in toml and ":cacheDir" in toml
 
+    def test_every_job_that_runs_the_python_gates_installs_their_requirements(self):
+        """health.yml ran `make check` on a bare runner from 2026-10-12: `make test`
+        needs coverage and pytest (#24), which only requirements-dev.txt brings, so the
+        weekly health check failed four Mondays running and nobody saw it."""
+        wf_dir = ROOT / ".github" / "workflows"
+        offenders = []
+        for wf in sorted(wf_dir.glob("*.yml")):
+            text = wf.read_text(encoding="utf-8")
+            # Split into job bodies: a job header is a two-space-indented key under jobs:.
+            body = text.split("\njobs:\n", 1)[-1]
+            for job in re.split(r"\n(?=  [A-Za-z0-9_-]+:\s*\n)", "\n" + body):
+                name = job.strip().split(":", 1)[0]
+                runs_gates = re.search(r"make (check|test|coverage|check-all|preflight)\b", job)
+                if runs_gates and "requirements-dev.txt" not in job:
+                    offenders.append(f"{wf.name}:{name}")
+        assert not offenders, f"jobs run the Python gates without installing them: {offenders}"
+
     def test_deploy_workflow_gates_before_publishing(self):
         """A direct push to main once reached production with nothing validating it."""
         wf = (ROOT / ".github" / "workflows" / "hugo.yml").read_text(encoding="utf-8")

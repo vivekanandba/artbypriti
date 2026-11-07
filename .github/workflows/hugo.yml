@@ -29,6 +29,8 @@ defaults:
 jobs:
   # Build job
   build:
+    # Under 1.5 min in every run seen (2026-10-07..11-07); the default is 6 hours.
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     env:
       HUGO_VERSION: 0.147.8
@@ -87,6 +89,7 @@ jobs:
 
   # Deployment job
   deploy:
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
