@@ -13,8 +13,19 @@
 //
 // Images are deliberately NOT cached. The gallery is 566 MB of artwork; filling a
 // phone's storage to make an offline visit prettier is a bad trade.
-const CACHE = "artbypriti-v1";
-const SHELL = ["/", "/manifest.webmanifest", "/images/icon-192.png", "/images/icon-512.png"];
+// The cache name is stamped by the build (layouts/partials/head-custom.html renders this file
+// as a template): the commit in CI, the UTC build time locally. A new deploy is a new name,
+// so `activate` below deletes every older cache. It used to be the hand-bumped
+// "artbypriti-v1", which nobody bumped, so nothing was ever deleted (FLEET.md, PWA standard).
+// scripts/check-output.py refuses a built worker without the stamp.
+const CACHE = "artbypriti-{{ .id }}";
+const SHELL = [
+  "/",
+  "/manifest.webmanifest",
+  "/images/icon-192.png",
+  "/images/icon-512.png",
+  "/images/icon-maskable-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));

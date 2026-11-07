@@ -344,6 +344,28 @@ def check_expected_files(built):
             errors.append(f"expected output missing: {rel}")
 
 
+# FLEET.md PWA standard (2026-11-07). A cache name someone must remember to bump is never
+# bumped: `activate` then deletes nothing and every old bundle stays on visitors' phones
+# (folio until #70; this site shipped "artbypriti-v1"). The build stamps the name from the
+# commit or the build time (layouts/partials/head-custom.html), so a built worker must carry
+# that stamp: 7-40 hex digits (a commit) or 14 digits (a UTC build timestamp).
+WORKER_CACHE = re.compile(r"""\bCACHE\s*=\s*["']([^"']+)["']""")
+WORKER_STAMP = re.compile(r"-(?:[0-9a-f]{7,40}|[0-9]{14})$")
+
+
+def check_worker_is_stamped(path):
+    if not os.path.exists(path):
+        return  # reported by the caller
+    with open(path, encoding="utf-8") as fh:
+        m = WORKER_CACHE.search(fh.read())
+    if not m:
+        errors.append("sw.js names no cache (no `CACHE = \"...\"`), so its activate step "
+                      "cannot tell an old cache from the current one")
+    elif not WORKER_STAMP.search(m.group(1)):
+        errors.append(f"sw.js cache name {m.group(1)!r} is not stamped by the build; a hand-"
+                      f"bumped or unrendered name leaves old caches on every visitor's phone")
+
+
 def check_installable(built):
     """The site is installable and its icons are what they claim to be (spec 009).
 
@@ -362,13 +384,25 @@ def check_installable(built):
     if not os.path.exists(os.path.join(built, "sw.js")):
         errors.append("expected output missing: sw.js")
 
+    check_worker_is_stamped(os.path.join(built, "sw.js"))
+
     with open(manifest_path, encoding="utf-8") as fh:
         manifest = json.load(fh)
-    sizes = {icon.get("sizes") for icon in manifest.get("icons", [])}
+    icons = manifest.get("icons", [])
+
+    def purposes(icon):
+        return set((icon.get("purpose") or "any").split())
+
+    # A maskable-only icon is cropped into the launcher shape and is never used as the plain
+    # icon, so it cannot stand in for the 192/512 a browser needs to offer installation.
+    plain = {icon.get("sizes") for icon in icons if "any" in purposes(icon)}
     for required in ("192x192", "512x512"):
-        if required not in sizes:
+        if required not in plain:
             errors.append(f"manifest declares no {required} icon; a phone will not install it")
-    for icon in manifest.get("icons", []):
+    if not any("maskable" in purposes(i) and i.get("sizes") == "512x512" for i in icons):
+        errors.append("manifest declares no maskable 512x512 icon; Android will crop the "
+                      "square icon into its launcher shape (FLEET.md, PWA standard)")
+    for icon in icons:
         rel = icon["src"].lstrip("/")
         path = os.path.join(built, rel)
         if not os.path.exists(path):
@@ -378,6 +412,14 @@ def check_installable(built):
             with open(path, "rb") as fh:
                 if fh.read(8) != b"\x89PNG\r\n\x1a\n":
                     errors.append(f"{icon['src']} is declared image/png but is not a PNG")
+                    continue
+            # The bytes must be the size the manifest claims: a phone picks icons by the
+            # declared size and scales whatever it gets.
+            actual = image_size(path)
+            declared = icon.get("sizes", "")
+            if actual and declared and "x".join(map(str, actual)) != declared:
+                errors.append(f"{icon['src']} is {actual[0]}x{actual[1]} but the manifest "
+                              f"declares {declared}")
 
     index = os.path.join(built, "index.html")
     if os.path.exists(index):

@@ -34,5 +34,10 @@
      subpath keeps working) without putting executable code back in the page. */}}
 <link rel="manifest" href="{{ "manifest.webmanifest" | relURL }}" />
 <meta name="theme-color" content="#1a1a1a" />
+{{- /* The worker is a template, published at the site root so its scope is the whole site.
+     Its cache name carries a build id: the commit when CI sets HUGO_BUILD_COMMIT, otherwise
+     the UTC build time. Every build stamps it, so nobody has to remember to (CON-PROC-006). */ -}}
+{{- $buildID := getenv "HUGO_BUILD_COMMIT" | default (now.UTC.Format "20060102150405") -}}
+{{- $worker := resources.Get "sw.js" | resources.ExecuteAsTemplate "sw.js" (dict "id" $buildID) -}}
 {{ $swRegister := resources.Get "js/sw-register.js" | fingerprint }}
-<script src="{{ $swRegister.RelPermalink }}" data-sw-url="{{ "sw.js" | relURL }}" defer></script>
+<script src="{{ $swRegister.RelPermalink }}" data-sw-url="{{ $worker.RelPermalink }}" defer></script>

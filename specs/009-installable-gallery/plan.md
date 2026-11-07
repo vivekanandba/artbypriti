@@ -28,6 +28,12 @@ loaded rather than a hand-written list, because Hugo fingerprints the CSS and JS
   the same problem without that coupling.
 - **Precaching the gallery.** Rejected: 566 MB.
 
+**Amendment, 2026-11-07.** The worker *is* now rendered as a template (`assets/sw.js`, via
+`resources.ExecuteAsTemplate` in `head-custom.html`), but only to stamp its cache name with
+the build id. That needs no knowledge of the theme's asset pipeline, so the reason above for
+rejecting a template still holds for URL substitution and does not apply here. The static
+`artbypriti-v1` name was never bumped, so `activate` never deleted an old cache.
+
 ## Risks
 
 - A visitor who has never been online sees nothing but the start URL. Accepted: the shell
