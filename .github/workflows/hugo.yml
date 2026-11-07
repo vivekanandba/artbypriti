@@ -74,6 +74,8 @@ jobs:
         env:
           HUGO_CACHEDIR: ${{ runner.temp }}/hugo_cache
           HUGO_ENVIRONMENT: production
+          # The worker's cache is named after this commit (FLEET.md, PWA standard).
+          HUGO_BUILD_COMMIT: ${{ github.sha }}
         run: |
           hugo \
             --minify \

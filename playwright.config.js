@@ -42,6 +42,9 @@ module.exports = defineConfig({
     colorScheme: "light",
     timezoneId: "UTC",
     locale: "en-US",
+    // No service worker in the screenshot specs: a worker makes what is on screen depend on
+    // what a previous test cached (gadjoy #41, folio #73). pwa.spec.js opts back in.
+    serviceWorkers: "block",
   },
   // Serves the already-built site. `make visual` builds it first; failing fast here beats
   // screenshotting a stale public/.

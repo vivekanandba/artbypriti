@@ -73,6 +73,8 @@ jobs:
         env:
           HUGO_CACHEDIR: ${{ runner.temp }}/hugo_cache
           HUGO_ENVIRONMENT: production
+          # The worker's cache is named after this commit (FLEET.md, PWA standard).
+          HUGO_BUILD_COMMIT: ${{ github.sha }}
         run: make check
 
   security:
@@ -165,6 +167,8 @@ jobs:
         env:
           HUGO_CACHEDIR: ${{ runner.temp }}/hugo_cache
           HUGO_ENVIRONMENT: production
+          # The worker's cache is named after this commit (FLEET.md, PWA standard).
+          HUGO_BUILD_COMMIT: ${{ github.sha }}
         run: make visual
       # On failure these contain *-diff.png showing precisely what moved.
       - name: Upload diffs

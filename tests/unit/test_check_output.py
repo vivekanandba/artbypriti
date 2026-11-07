@@ -34,9 +34,14 @@ MANIFEST = """{
   "start_url": "/", "scope": "/", "display": "standalone",
   "icons": [
     {"src": "/images/icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "/images/icon-512.png", "sizes": "512x512", "type": "image/png"}
+    {"src": "/images/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "/images/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
   ]
 }"""
+
+# What the build writes: the cache name carries the build's id (FLEET.md, PWA standard).
+STAMPED_WORKER = 'const CACHE = "artbypriti-3f9c2ab";\nself.addEventListener("fetch", function(){});'
+
 
 # A valid site is installable, so the baseline fixture carries the PWA files too.
 INSTALLABLE_PAGE = (
@@ -55,8 +60,9 @@ def site(tmp_path):
     for rel in ("sitemap.xml", "robots.txt"):
         (root / rel).write_text("x", encoding="utf-8")
     (root / "manifest.webmanifest").write_text(MANIFEST, encoding="utf-8")
-    (root / "sw.js").write_text("// worker", encoding="utf-8")
-    for rel, size in (("images/icon-192.png", 192), ("images/icon-512.png", 512)):
+    (root / "sw.js").write_text(STAMPED_WORKER, encoding="utf-8")
+    for rel, size in (("images/icon-192.png", 192), ("images/icon-512.png", 512),
+                      ("images/icon-maskable-512.png", 512)):
         q = root / rel
         q.parent.mkdir(parents=True, exist_ok=True)
         q.write_bytes(png_bytes(size, size))
@@ -433,7 +439,8 @@ class TestInstallableChain:
     PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 24
 
     def _pwa(self, site, *, manifest=True, sw=True, icons=("192x192", "512x512"),
-             script=True, script_registers=True, html=None):
+             script=True, script_registers=True, html=None, maskable=True,
+             maskable_size=512, worker=None):
         import json
         # The shared `site` fixture already ships a complete PWA, so "missing" cases must
         # remove what it provided rather than merely decline to add it.
@@ -442,16 +449,23 @@ class TestInstallableChain:
             if p.exists():
                 p.unlink()
         if manifest:
-            (site.root / "manifest.webmanifest").write_text(json.dumps({
-                "icons": [{"src": "/images/icon-%s.png" % s.split("x")[0], "sizes": s,
-                           "type": "image/png"} for s in icons]
-            }), encoding="utf-8")
+            entries = [{"src": "/images/icon-%s.png" % s.split("x")[0], "sizes": s,
+                        "type": "image/png"} for s in icons]
+            if maskable:
+                entries.append({"src": "/images/icon-maskable-512.png", "sizes": "512x512",
+                                "type": "image/png", "purpose": "maskable"})
+            (site.root / "manifest.webmanifest").write_text(json.dumps({"icons": entries}),
+                                                            encoding="utf-8")
             for s in icons:
-                p = site.root / "images" / ("icon-%s.png" % s.split("x")[0])
+                n = int(s.split("x")[0])
+                p = site.root / "images" / ("icon-%s.png" % n)
                 p.parent.mkdir(parents=True, exist_ok=True)
-                p.write_bytes(self.PNG)
+                p.write_bytes(png_bytes(n, n))
+            if maskable:
+                (site.root / "images" / "icon-maskable-512.png").write_bytes(
+                    png_bytes(maskable_size, maskable_size))
         if sw:
-            (site.root / "sw.js").write_text("self.addEventListener('fetch', function(){});",
+            (site.root / "sw.js").write_text(worker if worker is not None else STAMPED_WORKER,
                                              encoding="utf-8")
         if script:
             p = site.root / "js" / "sw-register.js"
@@ -521,3 +535,46 @@ class TestInstallableChain:
         (site.root / "images" / "icon-512.png").write_bytes(b"definitely not a png")
         co.check_installable(str(site.root))
         assert any("not a PNG" in e for e in co.errors)
+
+    # --- FLEET.md PWA standard (2026-11-07): stamped cache, maskable icon, honest sizes ---
+
+    def test_a_hand_bumped_cache_name_fails(self, co, site):
+        """A name someone must remember to bump is never bumped: activate then deletes
+        nothing and every old bundle stays on the phone (folio until #70)."""
+        self._pwa(site, worker='const CACHE = "artbypriti-v1";')
+        co.check_installable(str(site.root))
+        assert any("not stamped by the build" in e for e in co.errors)
+
+    def test_an_unrendered_template_placeholder_fails(self, co, site):
+        self._pwa(site, worker='const CACHE = "artbypriti-{{ .id }}";')
+        co.check_installable(str(site.root))
+        assert any("not stamped by the build" in e for e in co.errors)
+
+    def test_a_worker_without_a_cache_name_fails(self, co, site):
+        self._pwa(site, worker="self.addEventListener('fetch', function(){});")
+        co.check_installable(str(site.root))
+        assert any("names no cache" in e for e in co.errors)
+
+    @pytest.mark.parametrize("stamp", ["3f9c2ab", "3f9c2ab8d1e4f6a7b8c9d0e1f2a3b4c5d6e7f8a9",
+                                       "20261107213045"])
+    def test_a_build_stamped_cache_name_passes(self, co, site, stamp):
+        self._pwa(site, worker='const CACHE = "artbypriti-%s";' % stamp)
+        co.check_installable(str(site.root))
+        assert co.errors == []
+
+    def test_no_maskable_icon_fails(self, co, site):
+        """Without one, Android crops the square icon into its launcher shape."""
+        self._pwa(site, maskable=False)
+        co.check_installable(str(site.root))
+        assert any("maskable" in e for e in co.errors)
+
+    def test_a_maskable_icon_of_the_wrong_size_fails(self, co, site):
+        self._pwa(site, maskable_size=192)
+        co.check_installable(str(site.root))
+        assert any("icon-maskable-512.png" in e and "192x192" in e for e in co.errors)
+
+    def test_an_icon_whose_pixels_disagree_with_its_declared_size_fails(self, co, site):
+        self._pwa(site)
+        (site.root / "images" / "icon-512.png").write_bytes(png_bytes(180, 180))
+        co.check_installable(str(site.root))
+        assert any("icon-512.png" in e and "180x180" in e for e in co.errors)
