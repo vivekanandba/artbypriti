@@ -35,3 +35,5 @@ __pycache__/
 /test-results/
 /playwright-report/
 /public-check/
+# personal values the house-gates hook refuses to commit; never tracked
+.house-gates.denylist
