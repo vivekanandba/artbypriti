@@ -11,6 +11,13 @@ on:
     # Mondays, 07:00 UTC. Weekly is enough for a site that changes a few times a month.
     - cron: "0 7 * * 1"
   workflow_dispatch:
+    inputs:
+      canary:
+        # CON-OBS-003: an alert path is verified by firing it once. Configured is not working --
+        # this repo's reporter was added after four silent red Mondays and had never fired.
+        description: "Fail on purpose, to prove a red run reaches a person (opens the issue)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,6 +39,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+      # Only ever set by a person dispatching the workflow; a schedule has no inputs.
+      - name: Canary - fail on purpose
+        if: ${{ inputs.canary }}
+        run: |
+          echo "::error::Deliberate failure (canary=true) to prove the alert path. Not an outage."
+          exit 1
       - name: Check the deployed site
         run: python3 scripts/check-live.py
 

@@ -70,6 +70,36 @@ def load_ids(path):
     return out
 
 
+def snapshot_provenance(path, today=None):
+    """What the vendored list is and how old it is, as one line printed on every run.
+
+    CON-VER-011: a vendored copy that cannot report its own age is indistinguishable from the
+    current one and gets read as authoritative. CI never has the mirror, so the freshness
+    comparison below is SKIPPED there -- which makes this line the only statement of age CI
+    ever prints. Missing provenance is reported as unknown, never guessed.
+    """
+    import datetime
+
+    commit = synced = generated = None
+    if os.path.isfile(path):
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                if not line.startswith("#"):
+                    break
+                m = re.search(r"@\s*([0-9a-f]{7,40})\s*\((\d{4}-\d{2}-\d{2})\)", line)
+                if line.lstrip("# ").startswith("Mirror:") and m:
+                    commit, synced = m.group(1), m.group(2)
+                m = re.search(r"Generated:\s*(\d{4}-\d{2}-\d{2})", line)
+                if m:
+                    generated = m.group(1)
+    if not generated:
+        return "vendored rule list: provenance UNKNOWN (no Generated: line) — run `make constitution-ids`"
+    today = today or datetime.date.today()
+    age = (today - datetime.date.fromisoformat(generated)).days
+    source = f"mirror @ {commit} ({synced})" if commit else "mirror commit unknown"
+    return f"vendored rule list: {source}, generated {generated} ({age} day(s) ago)"
+
+
 def load_proposed(path):
     """Proposed IDs mapped to their stated reason. A missing reason is an error."""
     out = {}
@@ -189,6 +219,7 @@ def main():
     notes.append(
         f"{len(found)} distinct rule ID(s) cited, {len(vendored)} defined upstream"
     )
+    notes.append(snapshot_provenance(IDS_FILE))
     check_freshness(vendored)
 
     print_report()

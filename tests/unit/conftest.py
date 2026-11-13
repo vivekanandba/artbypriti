@@ -10,12 +10,30 @@ Two awkwardnesses these helpers hide:
 """
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
 import pytest
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
+
+
+@pytest.fixture(autouse=True)
+def _no_inherited_git_environment(monkeypatch):
+    """Strip every GIT_* variable before every test (CON-PROC-016).
+
+    git exports GIT_DIR and its siblings to every hook, and GIT_DIR overrides the working
+    directory -- `cwd=` is not isolation. Measured, not assumed: running test_check_specs.py
+    with GIT_DIR pointed at a throwaway repo wrote 15 fixture commits and two branches
+    ("feature", "main") INTO that repo, and three tests failed because check-specs.py then
+    diffed the wrong history. From a hook in a linked worktree, that repo is the real one.
+
+    Autouse, so it covers the fixtures' own git calls AND the code under test's (check-specs.py
+    runs merge-base/diff/log), and so a test added later cannot forget it.
+    """
+    for key in [k for k in os.environ if k.startswith("GIT_")]:
+        monkeypatch.delenv(key, raising=False)
 
 
 def load(name):
