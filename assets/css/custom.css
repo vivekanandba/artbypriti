@@ -117,3 +117,34 @@ hgroup p {
   font-size: 1.1em;
   color: #333; /* inert: the `body *` rule above forces #000 with !important */
 }
+
+/* Home and category cards (spec 020). These were inline `style=` attributes in album-card.html,
+   which kept the CSP's style-src at 'unsafe-inline'. An inline style outranks every
+   non-!important selector, so each rule here is specific enough (three classes) to beat the
+   theme's `.card > figure` and `.card figure > img`, as the inline style did. Equivalence is
+   asserted on computed styles, not eyeballed: see specs/020-strict-style-src. */
+.card.abp-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.card.abp-card > .abp-card__figure {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.card.abp-card .abp-card__img {
+  display: block;
+  margin: 0 auto;
+  width: 100%;
+  height: auto;
+  max-width: 600px;
+}
+.card.abp-card > .abp-card__caption {
+  text-align: center;
+  width: 100%;
+}

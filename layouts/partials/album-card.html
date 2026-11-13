@@ -1,10 +1,21 @@
+{{/*
+  Card on the home and category pages. No inline `style=` (spec 020): the fixed layout lives in
+  assets/css/custom.css under .abp-card*. Inline styles were the only thing keeping the CSP's
+  style-src at 'unsafe-inline'.
+
+  The figure used to carry `style="background-color: <the painting's dominant colour>"`. It never
+  rendered: custom.css sets `.card > figure { background: none !important }`, and an !important
+  stylesheet declaration beats a non-important inline one. Measured: all 144 card figures across
+  three pages and two viewports computed `rgba(0, 0, 0, 0)`. Dropped rather than ported, because
+  porting dead markup to a generated stylesheet would have added a request to change nothing.
+*/}}
 {{ $gallery := partial "get-gallery.html" . }}
 {{ with $gallery }}
-  <a class="card" href="{{ .page.RelPermalink }}" title="{{ .page.Title }}" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-    <figure style="background-color: {{ .color }}; display: flex; justify-content: center; align-items: center; width: 100%; max-width: 600px; margin: 0 auto;">
-      <img class="lazyload" width="{{ .thumbnail.Width }}" height="{{ .thumbnail.Height }}" data-src="{{ .thumbnail.RelPermalink }}" data-srcset="{{ .srcset }}" data-sizes="(max-width: 640px) 92vw, 600px" alt="{{ .page.Title }}" style="display: block; margin: 0 auto; width: 100%; height: auto; max-width: 600px;" />
+  <a class="card abp-card" href="{{ .page.RelPermalink }}" title="{{ .page.Title }}">
+    <figure class="abp-card__figure">
+      <img class="lazyload abp-card__img" width="{{ .thumbnail.Width }}" height="{{ .thumbnail.Height }}" data-src="{{ .thumbnail.RelPermalink }}" data-srcset="{{ .srcset }}" data-sizes="(max-width: 640px) 92vw, 600px" alt="{{ .page.Title }}" />
     </figure>
-    <div style="text-align: center; width: 100%;">
+    <div class="abp-card__caption">
       <h2>{{ .page.Title }}</h2>
     </div>
   </a>

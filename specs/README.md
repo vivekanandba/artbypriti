@@ -21,7 +21,8 @@ below.
 | [012](./012-citation-guard/) | Guard the constitution citations against rot | Implemented | PR #29 |
 | [014](./014-wider-testing/) | Accessibility, responsive and journey tests; lint the gates | Implemented | PR #31 |
 | [016](./016-lightbox/) | Make the lightbox work | Implemented | PR #33, caption fix #34 |
-| [019](./019-constitution-audit/) | Meet the 22 rules the constitution gained | In review | this PR |
+| [019](./019-constitution-audit/) | Meet the 22 rules the constitution gained | Implemented | PR #39 |
+| [020](./020-strict-style-src/) | A strict style policy | In review | this PR |
 
 **Two numbering notes, recorded rather than tidied away:**
 
