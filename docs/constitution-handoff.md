@@ -1,5 +1,19 @@
 # Handoff: four amendment proposals this repo raised
 
+> **ADOPTED 2026-11-07** in [vivekanandba/fleet#54](https://github.com/vivekanandba/fleet/pull/54),
+> which triaged the whole lesson backlog and assigned IDs once, against `main`:
+>
+> | Proposal | Adopted as |
+> | --- | --- |
+> | History is additive (with the security-remediation exception) | `CON-PROC-010` |
+> | Verify from the commit | `CON-PROC-015` |
+> | A conformance tool passing is not the property you need | `CON-VER-013` |
+> | Never fabricate domain content | `CON-DATA-006` |
+> | A proposal reserves no ID | the amendment procedure itself, and `skills/lesson` |
+>
+> fleet#46 was closed as superseded. Everything below is kept as the record of how the numbers
+> got there, including the two recommendations of mine that were wrong.
+
 > **Superseded 2026-10-31 — the edit has been made.** It is now
 > [vivekanandba/fleet#46](https://github.com/vivekanandba/fleet/pull/46): proposals only, for the
 > owner to adopt. Two recommendations below turned out to be **wrong**, and the PR corrects them.

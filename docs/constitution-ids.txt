@@ -5,8 +5,8 @@
 # (CON-VER-004). The IDs are therefore vendored here and refreshed deliberately.
 #
 # Source:    vivekanandba/fleet (formerly constitution) — CONSTITUTION.md
-# Mirror:    ~/data-dash/.constitution-mirror @ df884fd (2026-10-14)
-# Generated: 2026-10-30
+# Mirror:    ~/data-dash/.constitution-mirror @ 797c804 (2026-11-08)
+# Generated: 2026-11-13
 # Refresh:   make constitution-ids
 #
 # This is a snapshot of what EXISTS, not of what this repo may cite: an ID this repo
@@ -14,11 +14,18 @@
 CON-COV-001
 CON-COV-002
 CON-COV-003
+CON-COV-004
+CON-COV-005
 CON-DATA-001
 CON-DATA-002
 CON-DATA-003
 CON-DATA-004
 CON-DATA-005
+CON-DATA-006
+CON-OBS-001
+CON-OBS-002
+CON-OBS-003
+CON-OBS-004
 CON-PROC-001
 CON-PROC-002
 CON-PROC-003
@@ -28,9 +35,17 @@ CON-PROC-006
 CON-PROC-007
 CON-PROC-008
 CON-PROC-009
+CON-PROC-010
 CON-PROC-011
 CON-PROC-012
 CON-PROC-013
+CON-PROC-014
+CON-PROC-015
+CON-PROC-016
+CON-PROC-017
+CON-PROC-018
+CON-PROC-019
+CON-PROC-020
 CON-REP-001
 CON-REP-002
 CON-SEC-001
@@ -46,3 +61,10 @@ CON-VER-005
 CON-VER-006
 CON-VER-007
 CON-VER-008
+CON-VER-009
+CON-VER-010
+CON-VER-011
+CON-VER-012
+CON-VER-013
+CON-VER-014
+CON-VER-015
