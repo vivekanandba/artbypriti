@@ -31,10 +31,10 @@ so the limitation is recorded here rather than left implicit. The practical cons
 no user data, that is an accepted and low-consequence gap. It would not be acceptable if the site
 ever grew a form, a login, or anything a visitor could be tricked into clicking.
 
-### The CSP, and why it is not stricter
+### The CSP
 
 ```
-default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+default-src 'self'; script-src 'self'; style-src 'self';
 img-src 'self'; font-src 'self'; connect-src 'self';
 object-src 'none'; base-uri 'self'; form-action 'none'
 ```
@@ -48,11 +48,14 @@ Measured against the **built output**, not assumed from templates:
   errors. The registration now lives in `assets/js/sw-register.js`, and
   `check_csp_matches_the_markup` fails any page that declares `script-src 'self'` while carrying
   an inline script.
-- **0 inline `<style>` blocks**, but **184 `style=` attributes** on the home page alone, emitted by
-  the theme's `album-card.html`. Attributes cannot be hashed practically, so `style-src` needs
-  `'unsafe-inline'`. **This is the one weak directive**, and the fix is known: move those attributes
-  into `assets/css/custom.css`. That changes rendering, so it is its own change with its own visual
-  review — not something to smuggle into a security commit.
+- **0 inline `<style>` blocks and 0 `style=` attributes** → `style-src 'self'` is strict too
+  (spec 020). It used to need `'unsafe-inline'` for 368 attributes, all from `album-card.html`.
+  They are classes in `assets/css/custom.css` now, proven equivalent on **9,216 computed
+  properties across 144 cards — 0 differ** — and every screenshot baseline matched with nothing
+  re-recorded. One of the four was a per-painting background colour that had **never rendered**:
+  an `!important` rule in `custom.css` always won, so it was dropped rather than ported.
+  `check_style_csp_matches_the_markup` fails any page that declares a strict `style-src` and
+  carries an inline style, because a browser drops a blocked style silently.
 - **No external origins and no `data:` URIs**, so everything else is `'self'`.
 
 Verified in a real browser that the policy breaks nothing: zero CSP violations across the home,
@@ -100,6 +103,5 @@ this control** — it is managed by the decision recorded in the ledger, not by 
 ## Known gaps
 
 - Clickjacking and MIME-sniffing protection are **unachievable** on this host (above).
-- `style-src` requires `'unsafe-inline'` until the theme's inline style attributes move to CSS.
 - Incident #10 remains an accepted risk; the admin password should be rotated if reused anywhere.
 - Dependency *license* compliance is not checked. Out of scope.

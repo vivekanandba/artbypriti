@@ -338,6 +338,44 @@ def check_csp_matches_the_markup(built):
         notes.append(f"{policed} page(s) declare script-src 'self' and carry no inline <script>")
 
 
+STYLE_SRC_RE = re.compile(r"style-src([^;\"]*)")
+INLINE_STYLE_ATTR_RE = re.compile(r"<[a-zA-Z][^>]*\sstyle=")
+
+
+def check_style_csp_matches_the_markup(built):
+    """A strict style-src and an inline style cannot both be right.
+
+    Spec 020 removed 'unsafe-inline' from style-src after moving 368 `style=` attributes into
+    custom.css. A browser ignores a blocked inline style silently -- the element just renders
+    unstyled -- so a later template edit that adds one back would ship a quietly broken layout
+    with every gate green. Checked against the markup here, the same way script-src is above.
+    """
+    offenders, policed = [], 0
+    for dp, _, fns in os.walk(built):
+        for fn in fns:
+            if not fn.endswith(".html"):
+                continue
+            html = open(os.path.join(dp, fn), encoding="utf-8", errors="replace").read()
+            m = STYLE_SRC_RE.search(html)
+            if not m or "unsafe-inline" in m.group(1):
+                continue
+            policed += 1
+            rel = os.path.relpath(os.path.join(dp, fn), built)
+            if INLINE_STYLE_ATTR_RE.search(html):
+                offenders.append(f"{rel} (style= attribute)")
+            elif re.search(r"<style\b", html):
+                offenders.append(f"{rel} (<style> block)")
+
+    if offenders:
+        errors.append(
+            f"{len(offenders)} page(s) carry an inline style while style-src forbids it -- the "
+            f"browser drops it silently and the element renders unstyled. Use a class in "
+            f"assets/css/custom.css. First: {offenders[0]}"
+        )
+    elif policed:
+        notes.append(f"{policed} page(s) declare a strict style-src and carry no inline style")
+
+
 def check_expected_files(built):
     for rel in ("index.html", "about/index.html", "request/index.html", "sitemap.xml", "robots.txt"):
         if not os.path.exists(os.path.join(built, rel)):
@@ -493,6 +531,7 @@ def main():
     check_no_upscaling(built, content)
     check_artwork_fills_its_column(built, content)
     check_csp_matches_the_markup(built)
+    check_style_csp_matches_the_markup(built)
     check_expected_files(built)
     check_installable(built)
     check_internal_links(built)

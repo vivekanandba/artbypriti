@@ -8,6 +8,7 @@ This runs on a schedule and checks the deployed site rather than the repository.
 Usage:  python3 scripts/check-live.py [base_url]
 Exit:   0 = healthy (warnings allowed), 1 = something is wrong
 """
+import re
 import sys
 import time
 import urllib.error
@@ -90,6 +91,15 @@ def main(base=None):
             warnings.append("the live CSP no longer restricts script-src to 'self'")
         else:
             notes.append("live CSP present and script-src is restricted to 'self'")
+            # Spec 020 made style-src strict too. Asserted on the running site, because a
+            # policy that regressed to 'unsafe-inline' still "has a CSP" and would pass above.
+            m = re.search(rb"style-src([^;\"]*)", body)
+            if not m:
+                warnings.append("the live CSP declares no style-src")
+            elif b"unsafe-inline" in m.group(1):
+                warnings.append("the live CSP allows inline styles again ('unsafe-inline' in style-src)")
+            else:
+                notes.append("live style-src is strict (no 'unsafe-inline')")
 
     if code == 200 and b"_hu_" not in body:
         warnings.append("home page served no processed image variants — check the gallery rendered")

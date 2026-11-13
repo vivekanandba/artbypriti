@@ -578,3 +578,44 @@ class TestInstallableChain:
         (site.root / "images" / "icon-512.png").write_bytes(png_bytes(180, 180))
         co.check_installable(str(site.root))
         assert any("icon-512.png" in e and "180x180" in e for e in co.errors)
+
+
+class TestStyleCspVersusMarkup:
+    """Spec 020: style-src went strict once the 368 card `style=` attributes became classes.
+    A browser drops a blocked inline style silently, so the markup is checked, not trusted."""
+
+    STRICT = "<meta http-equiv=Content-Security-Policy content=\"default-src 'self'; style-src 'self'; img-src 'self'\">"
+    LAX = "<meta http-equiv=Content-Security-Policy content=\"style-src 'self' 'unsafe-inline'\">"
+
+    def test_style_attribute_under_strict_style_src_is_an_error(self, co, site):
+        site.add_page("index.html", self.STRICT + '<a class=card style="display:flex">x</a>')
+        co.check_style_csp_matches_the_markup(str(site.root))
+        assert any("inline style" in e and "style= attribute" in e for e in co.errors)
+
+    def test_minified_unquoted_style_attribute_is_caught(self, co, site):
+        """Hugo's minifier drops attribute quotes; the check must not depend on them."""
+        site.add_page("index.html", self.STRICT + "<div style=text-align:center>x</div>")
+        co.check_style_csp_matches_the_markup(str(site.root))
+        assert co.errors
+
+    def test_style_block_under_strict_style_src_is_an_error(self, co, site):
+        site.add_page("index.html", self.STRICT + "<style>.a{color:red}</style>")
+        co.check_style_csp_matches_the_markup(str(site.root))
+        assert any("<style> block" in e for e in co.errors)
+
+    def test_classes_only_under_strict_style_src_pass(self, co, site):
+        site.add_page("index.html", self.STRICT + '<a class="card abp-card"><figure class=abp-card__figure></figure></a>')
+        co.check_style_csp_matches_the_markup(str(site.root))
+        assert co.errors == []
+        assert any("strict style-src" in n for n in co.notes)
+
+    def test_unsafe_inline_is_not_policed(self, co, site):
+        """Only pages that actually declare the restriction are held to it."""
+        site.add_page("index.html", self.LAX + '<div style="color:red">x</div>')
+        co.check_style_csp_matches_the_markup(str(site.root))
+        assert co.errors == []
+
+    def test_the_word_style_in_text_is_not_an_attribute(self, co, site):
+        site.add_page("index.html", self.STRICT + "<p>painted in a loose style=free manner</p>")
+        co.check_style_csp_matches_the_markup(str(site.root))
+        assert co.errors == []

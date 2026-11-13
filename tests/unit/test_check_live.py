@@ -166,6 +166,25 @@ class TestCspContract:
         assert self._run(cl) == 0
         assert any("script-src is restricted" in n for n in cl.notes)
 
+    def _live(self, cl, monkeypatch, policy):
+        body = f"<meta http-equiv=Content-Security-Policy content=\"{policy}\"> _hu_".encode()
+        monkeypatch.setattr(cl.urllib.request, "urlopen", routes({cl.MUST_404: 404}, 200, body=body))
+        return self._run(cl)
+
+    def test_strict_style_src_is_reported(self, cl, monkeypatch):
+        """Spec 020: style-src went strict; the running site is held to it."""
+        assert self._live(cl, monkeypatch, "script-src 'self'; style-src 'self'") == 0
+        assert any("style-src is strict" in n for n in cl.notes)
+
+    def test_style_src_regressed_to_unsafe_inline_warns(self, cl, monkeypatch):
+        """A policy that loosened still "has a CSP", so the presence check alone would pass it."""
+        self._live(cl, monkeypatch, "script-src 'self'; style-src 'self' 'unsafe-inline'")
+        assert any("allows inline styles again" in w for w in cl.warnings)
+
+    def test_missing_style_src_warns(self, cl, monkeypatch):
+        self._live(cl, monkeypatch, "script-src 'self'")
+        assert any("declares no style-src" in w for w in cl.warnings)
+
     def test_csp_that_stopped_restricting_scripts_warns(self, cl, monkeypatch):
         body = b"<meta http-equiv=Content-Security-Policy content=\"script-src *\"> _hu_"
         monkeypatch.setattr(cl.urllib.request, "urlopen",
