@@ -16,6 +16,12 @@
 #
 # GH_REPO, not a git checkout, names the repo. The title is matched exactly, so
 # an issue that merely contains the same words never receives the alert.
+#
+# NOTIFY names who is told (a login; health.yml passes the repo owner). The issue is
+# ASSIGNED to them, because GitHub always notifies an assignee, whereas a bot-opened
+# issue with no assignee reaches only whoever happens to watch the repo -- the canary of
+# 2026-11-13 (#40) opened exactly that. Assignment is best effort: if it is refused,
+# the issue is still opened, since an unassigned alert beats a lost one.
 set -euo pipefail
 
 title="${1:-}"
@@ -52,6 +58,18 @@ if [ "$result" = "success" ]; then
   done
 elif [ -n "$number" ]; then
   gh issue comment "$number" --body "This scheduled run $what: $run"
+  # An issue opened before NOTIFY existed has no assignee; repair it, best effort.
+  if [ -n "${NOTIFY:-}" ]; then
+    gh issue edit "$number" --add-assignee "$NOTIFY" \
+      || echo "report-failure: could not assign #$number to $NOTIFY; the comment still stands" >&2
+  fi
 else
-  gh issue create --title "$title" --body "This scheduled run $what: $run"
+  body="This scheduled run $what: $run"
+  if [ -n "${NOTIFY:-}" ] \
+     && gh issue create --title "$title" --body "$body" --assignee "$NOTIFY"; then
+    :
+  else
+    [ -z "${NOTIFY:-}" ] || echo "report-failure: could not assign to $NOTIFY; opening unassigned" >&2
+    gh issue create --title "$title" --body "$body"
+  fi
 fi

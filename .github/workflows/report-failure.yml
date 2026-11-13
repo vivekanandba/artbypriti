@@ -43,4 +43,8 @@ jobs:
           # Through env, never spliced into the script text.
           TITLE: ${{ inputs.title }}
           RESULT: ${{ inputs.result }}
+          # Who is told. An issue nobody is assigned to reaches a person only if they happen to
+          # watch the repo -- the canary of 2026-11-13 opened #40 with no assignee, and nothing
+          # arrived that could be confirmed. GitHub always notifies an assignee.
+          NOTIFY: ${{ github.repository_owner }}
         run: bash scripts/report-failure.sh "$TITLE" "$RESULT"
