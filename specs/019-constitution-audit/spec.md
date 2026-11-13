@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-13
 
-**Status**: Draft
+**Status**: Implemented — PR #39
 
 **Input**: fleet#54 (2026-11-07) adopted 22 rules this repository had never been checked
 against. One of them, `CON-OBS-002`, names this repository in its own incident: *"artbypriti's

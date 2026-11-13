@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-08
 
-**Status**: Draft
+**Status**: Implemented — PR #20
 
 **Input**: User description: "Can we have a common constitution? Can we have a shared constitution?
 How do we learn it continuously? Please come up with some better ideas."

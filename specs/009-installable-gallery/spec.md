@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-10
 
-**Status**: Draft
+**Status**: Implemented — PR #27
 
 **Input**: "I would like to have PWA version of all the apps where it is possible."
 

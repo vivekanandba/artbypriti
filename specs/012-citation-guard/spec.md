@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-30
 
-**Status**: Draft
+**Status**: Implemented — PR #29
 
 **Input**: Outstanding item from the post-merge plan: "11 IDs cited, nothing checks them." The real
 count, measured on `main` @ `16597cf`, is **25 distinct IDs** across specs, scripts, docs and

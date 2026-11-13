@@ -159,6 +159,87 @@ def check_registry():
         notes.append(f"spec registry lists all {len(on_disk)} spec(s)")
 
 
+def status_category(text):
+    """Collapse a free-text status to the one question it answers: has this shipped?"""
+    t = (text or "").lower()
+    if "retroactive" in t or "backfilled" in t:
+        return "backfilled"
+    if "implemented" in t:
+        return "implemented"
+    if "draft" in t or "in review" in t:
+        return "in-review"
+    return None
+
+
+def check_status_agreement():
+    """A spec's own Status header and its registry row must say the same thing.
+
+    They are two hand-kept copies of one fact, and they drifted: when this check was written,
+    fifteen shipped specs still said `Status: Draft` in their header while the registry said
+    Implemented -- recorded in the registry as a known disagreement (CON-DATA-003) and then left.
+    Two copies of a fact drift unless something compares them (the same lesson as the duplicated
+    linter pins, spec 019). This compares them; it needs no git, so it never blocks an unrelated
+    content PR.
+    """
+    readme = os.path.join(SPECS_DIR, "README.md")
+    if not os.path.isfile(readme):
+        return  # check_registry reports the missing file
+    rows = {}
+    for line in open(readme, encoding="utf-8"):
+        m = re.match(r"^\|\s*\[\d{3}\]\(\./(\d{3}-[^/)]+)/?\)\s*\|[^|]*\|([^|]*)\|", line)
+        if m:
+            rows[m.group(1)] = m.group(2).strip()
+
+    disagree, agree = [], 0
+    for feat, reg in sorted(rows.items()):
+        spec = os.path.join(SPECS_DIR, feat, "spec.md")
+        if not os.path.isfile(spec):
+            continue
+        m = re.search(r"^\*\*Status\*\*:\s*(.+)$", open(spec, encoding="utf-8").read(), re.M)
+        header = m.group(1).strip() if m else ""
+        hc, rc = status_category(header), status_category(reg)
+        if hc is None or rc is None:
+            errors.append(
+                f"{spec}: status not recognised (header {header!r}, registry {reg!r}) — "
+                f"use Draft / In review, Implemented, or Backfilled"
+            )
+        elif hc != rc:
+            disagree.append(f"{feat} (header: {hc}, registry: {rc})")
+        else:
+            agree += 1
+    for d in disagree:
+        errors.append(f"spec status disagrees with the registry: {d} — update both together")
+    if rows and not disagree:
+        notes.append(f"{agree} spec status header(s) agree with the registry")
+
+
+def check_shipped_specs_say_so(base_ref):
+    """A spec already on the base branch has shipped; warn if it still says Draft.
+
+    A WARNING, deliberately: the PR after a spec merges is often unrelated (an artist adding a
+    painting's dimensions), and failing it for someone else's bookkeeping would teach people to
+    route around the gate. Surfaced on every PR until someone fixes it.
+    """
+    merge_base = run("git", "merge-base", base_ref, "HEAD").strip() or base_ref
+    on_base = set(
+        re.findall(r"^specs/(\d{3}-[^/]+)/spec\.md$",
+                   run("git", "ls-tree", "-r", "--name-only", merge_base, "specs/"), re.M)
+    )
+    stale = []
+    for feat in sorted(on_base):
+        spec = os.path.join(SPECS_DIR, feat, "spec.md")
+        if not os.path.isfile(spec):
+            continue
+        m = re.search(r"^\*\*Status\*\*:\s*(.+)$", open(spec, encoding="utf-8").read(), re.M)
+        if m and status_category(m.group(1)) == "in-review":
+            stale.append(feat)
+    if stale:
+        warnings.append(
+            f"{len(stale)} spec(s) already on {base_ref} still say Draft/In review — they shipped; "
+            f"mark them Implemented with the PR number: {', '.join(stale[:5])}"
+        )
+
+
 def changed_files(base_ref):
     """Files changed relative to the merge base with base_ref."""
     merge_base = run("git", "merge-base", base_ref, "HEAD").strip()
@@ -223,8 +304,10 @@ def main():
 
     check_hygiene()
     check_registry()
+    check_status_agreement()
     if base_ref:
         check_required(base_ref)
+        check_shipped_specs_say_so(base_ref)
 
     for n in notes:
         print(f"ok:      {n}")

@@ -37,7 +37,7 @@ def specs(tmp_path, monkeypatch):
     created = set()
 
     def feature(name, *, spec=True, criteria=True, tokens=False, plan=False, tasks=False,
-                registry=True):
+                registry=True, status="Implemented — PR #1"):
         d = root / name; d.mkdir(parents=True, exist_ok=True)
         # A tree is only "clean" if the index matches it, so the fixture keeps them in step
         # unless a test is specifically exercising the drift.
@@ -45,7 +45,10 @@ def specs(tmp_path, monkeypatch):
             created.add(name)
         write_registry(created)
         if spec:
-            body = [f"# Feature Specification: {name}", "", "## Requirements", "- FR-001: a thing"]
+            # The registry rows say Implemented, so a clean tree's headers do too (spec 022).
+            body = [f"# Feature Specification: {name}", ""]
+            if status is not None: body += [f"**Status**: {status}", ""]
+            body += ["## Requirements", "- FR-001: a thing"]
             if criteria: body += ["", "## Success Criteria", "- SC-001: it works"]
             if tokens: body += ["", "Title: [FEATURE NAME]"]
             (d / "spec.md").write_text("\n".join(body), encoding="utf-8")
@@ -251,3 +254,65 @@ class TestReporting:
         finally:
             sys.argv = argv
         assert "warning:" in capsys.readouterr().out
+
+
+class TestStatusAgreement:
+    """Spec 022: fifteen shipped specs still said Draft while the registry said Implemented.
+    Two hand-kept copies of one fact drift unless something compares them."""
+
+    def test_matching_header_and_registry_pass(self, cs, specs):
+        specs("001-shipped")
+        cs.check_status_agreement()
+        assert cs.errors == []
+        assert any("agree with the registry" in n for n in cs.notes)
+
+    def test_a_shipped_spec_still_saying_draft_fails(self, cs, specs):
+        specs("001-stale", status="Draft")
+        cs.check_status_agreement()
+        assert any("disagrees with the registry" in e and "001-stale" in e for e in cs.errors)
+
+    def test_an_unrecognised_status_fails_rather_than_passing(self, cs, specs):
+        specs("001-odd", status="Probably fine")
+        cs.check_status_agreement()
+        assert any("not recognised" in e for e in cs.errors)
+
+    def test_a_missing_status_line_is_not_silently_accepted(self, cs, specs):
+        specs("001-none", status=None)
+        cs.check_status_agreement()
+        assert any("not recognised" in e for e in cs.errors)
+
+    def test_backfilled_matches_retroactive(self, cs, specs):
+        """Spec 000 says RETROACTIVE in its header and Backfilled in the registry: same fact."""
+        specs("000-old", status="⚠️ **RETROACTIVE** — implemented before specs existed")
+        text = (specs.root / "README.md").read_text(encoding="utf-8")
+        (specs.root / "README.md").write_text(
+            text.replace("| Implemented |", "| ⚠️ **Backfilled** — shipped before this process |"),
+            encoding="utf-8")
+        cs.check_status_agreement()
+        assert cs.errors == []
+
+    def test_in_review_matches_draft(self, cs, specs):
+        specs("002-open", status="Draft")
+        text = (specs.root / "README.md").read_text(encoding="utf-8")
+        (specs.root / "README.md").write_text(text.replace("| Implemented |", "| In review |"), encoding="utf-8")
+        cs.check_status_agreement()
+        assert cs.errors == []
+
+
+class TestShippedSpecsSaySo:
+    def test_a_spec_already_on_base_that_says_draft_warns_not_fails(self, cs, specs):
+        """A warning, so an unrelated content PR is never blocked by someone else's bookkeeping."""
+        specs("001-old", status="Draft")
+        commit_all(specs, "base")
+        specs.run("git", "checkout", "-q", "-b", "feature")
+        cs.check_shipped_specs_say_so("main")
+        assert cs.errors == []
+        assert any("001-old" in w and "shipped" in w for w in cs.warnings)
+
+    def test_a_spec_new_in_this_branch_may_say_draft(self, cs, specs):
+        specs("001-old")
+        commit_all(specs, "base")
+        specs.run("git", "checkout", "-q", "-b", "feature")
+        specs("002-new", status="Draft")
+        cs.check_shipped_specs_say_so("main")
+        assert cs.warnings == []

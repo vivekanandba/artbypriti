@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-08
 
-**Status**: Draft
+**Status**: Implemented — PR #22
 
 **Input**: User description: "check if a lot of these hooks are part of the new constitution report
 that I created. see if you can compare what is learnt over here into that report. If it is that

@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-31
 
-**Status**: Draft
+**Status**: Implemented — PR #33 (caption fix #34)
 
 **Input**: The open question left by `014-wider-testing`, which found the lightbox had never
 worked and deliberately did not fix it: *"restoring the lightbox or deleting ~99 KB of dead

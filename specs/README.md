@@ -22,7 +22,8 @@ below.
 | [014](./014-wider-testing/) | Accessibility, responsive and journey tests; lint the gates | Implemented | PR #31 |
 | [016](./016-lightbox/) | Make the lightbox work | Implemented | PR #33, caption fix #34 |
 | [019](./019-constitution-audit/) | Meet the 22 rules the constitution gained | Implemented | PR #39 |
-| [020](./020-strict-style-src/) | A strict style policy | In review | this PR |
+| [020](./020-strict-style-src/) | A strict style policy | Implemented | PR #41 |
+| [022](./022-spec-status/) | A spec says whether it shipped | In review | this PR |
 
 **Two numbering notes, recorded rather than tidied away:**
 
@@ -41,10 +42,12 @@ below.
   `009-installable-gallery` landed first and kept it. This is the same collision the project hit
   with constitution rule IDs, and the same resolution: first to land keeps the number.
 
-**On the Status column:** it records whether the work *shipped*, which is what a reader of this index
-wants. Several `spec.md` files still carry `Status: Draft` in their own header even though they are
-merged and deployed — those headers are stale. The disagreement is noted here rather than silently
-reconciled (`CON-DATA-003`); correcting them is tracked separately.
+**On the Status column:** it records whether the work *shipped*, and each spec's own `**Status**:`
+header must say the same — `check-specs.py` fails when they disagree (spec 022). Fifteen headers had
+drifted to a stale `Draft` while this column said Implemented; the disagreement was recorded here
+rather than silently reconciled (`CON-DATA-003`), then corrected against the merged PRs. When a spec
+merges, mark it `Implemented — PR #N` in **both** places in the next change; a spec already on `main`
+that still says Draft is reported as a warning on every PR until someone does.
 
 ## Why 000 is numbered out of band
 

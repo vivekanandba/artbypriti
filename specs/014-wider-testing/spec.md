@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-30
 
-**Status**: Draft
+**Status**: Implemented — PR #31
 
 **Input**: The remaining item of the post-merge plan — "E2E journeys, lightbox, **mobile 375 /
 tablet 768** screenshots, 404; `axe-core` accessibility (currently zero); `shellcheck` on

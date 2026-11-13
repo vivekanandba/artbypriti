@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-13
 
-**Status**: Draft
+**Status**: Implemented — PR #41
 
 **Input**: The known debt recorded in `010-security-gates` and `docs/security.md`: `style-src`
 needed `'unsafe-inline'` — "the one weak directive" — because of inline `style=` attributes.

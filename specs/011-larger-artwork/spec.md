@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-30
 
-**Status**: Draft
+**Status**: Implemented — PR #28
 
 **Input**: The design decision `006-image-resolution` deliberately refused to make. Spec 006 found
 that artwork pages were *under-filling* their column rather than being upscaled, and recorded:
