@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-10
 
-**Status**: Draft
+**Status**: Implemented — PR #26
 
 **Input**: `CON-SEC-002`, `CON-SEC-003` and `CON-SEC-004` landed in the shared constitution. This
 repository cites that constitution and complied with none of them.

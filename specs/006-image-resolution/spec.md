@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-12
 
-**Status**: Draft
+**Status**: Implemented — PR #23
 
 **Input**: Workstream A from the post-merge planning survey: "23 of 46 grid images are being
 upscaled... no srcset anywhere."
