@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "report-failure.sh"
 
 
-def run(tmp_path, result, issues, title="Weekly health check is failing"):
+def run(tmp_path, result, issues, title="Weekly health check is failing", notify=None, refuse_assign=False):
     calls = tmp_path / "calls.log"
     fake = tmp_path / "bin" / "gh"
     fake.parent.mkdir()
@@ -26,6 +26,9 @@ def run(tmp_path, result, issues, title="Weekly health check is failing"):
     # filtered for itself let that mutation survive. Every other call is logged.
     fake.write_text(f"""#!/usr/bin/env bash
 echo "$*" >> {calls}
+if [ "{'1' if refuse_assign else ''}" = 1 ] && [[ "$*" == *assignee* ]]; then
+  echo "could not assign" >&2; exit 1
+fi
 if [ "$1" = api ]; then
   expr=""
   while [ $# -gt 0 ]; do
@@ -38,6 +41,9 @@ fi
     fake.chmod(0o755)
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     env.update(PATH=f"{fake.parent}:{env['PATH']}", GH_REPO="o/r", RUN_URL="https://run/1")
+    env.pop("NOTIFY", None)
+    if notify:
+        env["NOTIFY"] = notify
     done = subprocess.run(["bash", str(SCRIPT), title, result], env=env,
                           capture_output=True, text=True)
     return done, (calls.read_text().splitlines() if calls.exists() else [])
@@ -96,3 +102,51 @@ def test_a_bot_issue_with_a_different_title_is_not_this_jobs_issue(tmp_path):
                       [{"number": 4, "title": "Weekly link check is failing", "user": BOT}])
     assert not any(c.startswith("issue comment 4") for c in calls)
     assert any(c.startswith("issue create") for c in calls)
+
+
+# A red run must reach a PERSON, not just exist as an issue. The canary of 2026-11-13 opened
+# #40 with no assignee: it reached only whoever happened to watch the repo. GitHub always
+# notifies an assignee, so the reporter assigns NOTIFY (the repo owner, from the workflow).
+
+def test_a_new_failure_issue_is_assigned_to_the_person_notified(tmp_path):
+    done, calls = run(tmp_path, "failure", [], notify="owner")
+    assert done.returncode == 0, done.stderr
+    creates = [c for c in calls if c.startswith("issue create")]
+    assert creates and "--assignee owner" in creates[0]
+
+
+def test_a_refused_assignment_still_opens_the_issue(tmp_path):
+    """An unassigned alert beats a lost one: the fallback must still create the issue."""
+    done, calls = run(tmp_path, "failure", [], notify="owner", refuse_assign=True)
+    assert done.returncode == 0, done.stderr
+    creates = [c for c in calls if c.startswith("issue create")]
+    assert len(creates) == 2, "first try assigned, then the unassigned fallback"
+    assert "--assignee" not in creates[-1]
+    assert "could not assign" in done.stderr
+
+
+def test_without_notify_the_issue_is_opened_unassigned(tmp_path):
+    done, calls = run(tmp_path, "failure", [])
+    creates = [c for c in calls if c.startswith("issue create")]
+    assert len(creates) == 1 and "--assignee" not in creates[0]
+
+
+def test_an_older_unassigned_issue_is_assigned_when_commented_on(tmp_path):
+    done, calls = run(tmp_path, "failure",
+                      [{"number": 7, "title": "Weekly health check is failing", "user": BOT}],
+                      notify="owner")
+    assert any(c.startswith("issue comment 7") for c in calls)
+    assert any(c.startswith("issue edit 7") and "--add-assignee owner" in c for c in calls)
+
+
+def test_a_refused_reassignment_does_not_fail_the_report(tmp_path):
+    done, calls = run(tmp_path, "failure",
+                      [{"number": 7, "title": "Weekly health check is failing", "user": BOT}],
+                      notify="owner", refuse_assign=True)
+    assert done.returncode == 0, done.stderr
+    assert any(c.startswith("issue comment 7") for c in calls)
+
+
+def test_the_workflow_names_who_is_notified(tmp_path):
+    wf = (ROOT / ".github" / "workflows" / "report-failure.yml").read_text(encoding="utf-8")
+    assert "NOTIFY: ${{ github.repository_owner }}" in wf
