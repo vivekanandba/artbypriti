@@ -119,26 +119,13 @@ jobs:
       #
       # Both tools are pinned and run from a container / an ephemeral env, because neither
       # is installed on the development VM or guaranteed on the runner (CON-VER-004).
-      - name: Lint the shell that runs the gates
-        run: |
-          docker run --rm -v "$PWD:/mnt" --user "$(id -u):$(id -g)" \
-            koalaman/shellcheck:v0.10.0 --severity=style \
-            scripts/check-local-gates.sh scripts/preflight.sh \
-            .githooks/commit-msg .githooks/pre-commit .githooks/pre-push
-
-      # Medium severity and above. The 224 Low findings are `assert` in the test suite --
-      # where asserting IS the test -- and subprocess calls built from literal argv with no
-      # shell. Gating on Low would mean suppressing 224 things, and an allowlist that long
-      # is not read by anyone (spec 014).
-      # In a container, not `pip install` on the runner: bandit 1.9.2 requires Python
-      # >= 3.10 and the self-hosted runners are Ubuntu 20.04 with python3 3.8. Checked
-      # before writing this step rather than discovered from a red build (CON-VER-004).
-      - name: Scan the Python for security defects
-        run: |
-          docker run --rm -v "$PWD:/work" -w /work --user "$(id -u):$(id -g)" -e HOME=/tmp \
-            python:3.12-slim bash -c \
-            'pip install --quiet --no-warn-script-location bandit==1.9.2 && \
-             python -m bandit -r scripts/ -ll -q'
+      # One command, the same one a developer runs. The pins (shellcheck v0.10.0, bandit 1.9.2
+      # in python:3.12-slim) live ONLY in the Makefile: this step used to repeat them, and two
+      # copies of a version are a drift waiting to happen (CON-VER-010 -- every job that checks
+      # the same thing uses the same image). bandit gates at medium+: the 224 Low findings are
+      # `assert` in tests and literal-argv subprocess calls (spec 014).
+      - name: Lint the gates' own code (shellcheck + bandit)
+        run: make lint
 
   visual:
     timeout-minutes: 20

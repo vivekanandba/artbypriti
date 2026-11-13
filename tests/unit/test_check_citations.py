@@ -154,3 +154,33 @@ class TestMissingVendoredList:
         (repo.root / "docs" / "constitution-ids.txt").unlink()
         assert run(cc, monkeypatch) == 1
         assert any("nothing to check citations against" in e for e in cc.errors)
+
+
+class TestProvenance:
+    """CON-VER-011: a vendored copy says what it is and how old it is, on every run."""
+
+    def _write(self, tmp_path, header):
+        p = tmp_path / "ids.txt"
+        p.write_text(header + "CON-VER-001\n", encoding="utf-8")
+        return str(p)
+
+    def test_reports_commit_sync_date_and_age(self, cc, tmp_path):
+        import datetime
+        p = self._write(tmp_path, "# Mirror:    ~/x @ 797c804 (2026-11-08)\n# Generated: 2026-11-10\n")
+        line = cc.snapshot_provenance(p, today=datetime.date(2026, 11, 13))
+        assert "797c804" in line and "2026-11-08" in line and "3 day(s) ago" in line
+
+    def test_missing_generated_line_is_unknown_not_guessed(self, cc, tmp_path):
+        p = self._write(tmp_path, "# Mirror:    ~/x @ 797c804 (2026-11-08)\n")
+        assert "UNKNOWN" in cc.snapshot_provenance(p)
+
+    def test_missing_commit_says_so(self, cc, tmp_path):
+        import datetime
+        p = self._write(tmp_path, "# Generated: 2026-11-13\n")
+        line = cc.snapshot_provenance(p, today=datetime.date(2026, 11, 13))
+        assert "commit unknown" in line
+
+    def test_main_prints_the_provenance_line(self, cc, repo, monkeypatch):
+        repo(defined=("CON-VER-001",), cites="See CON-VER-001.\n")
+        run(cc, monkeypatch)
+        assert any("vendored rule list:" in n for n in cc.notes)

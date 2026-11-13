@@ -2,7 +2,7 @@
 # Visual regression additionally requires Docker. Run `make` for the list.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup serve build check check-all test coverage preflight live spec-required visual visual-update constitution-ids lint new clean
+.PHONY: help setup serve build check check-all test coverage preflight live spec-required visual visual-built visual-update constitution-ids lint new clean
 
 # Pinned so screenshots are comparable: the container fixes font rendering, which is the
 # only way CI and a developer machine agree (spec FR-006). Must match the @playwright/test
@@ -15,8 +15,12 @@ PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v1.62.1-noble
 SHELLCHECK_IMAGE := koalaman/shellcheck:v0.10.0
 BANDIT_VERSION   := 1.9.2
 BANDIT_IMAGE     := python:3.12-slim
-SHELL_FILES      := scripts/check-local-gates.sh scripts/preflight.sh \
-                    .githooks/commit-msg .githooks/pre-commit .githooks/pre-push
+# This repo's own shell, by glob so a new script is linted without anyone remembering to add it.
+# .githooks/* are deliberately NOT here (CON-COV-004): their header block is vendored house-gates
+# (v1.7.x), linted once in the fleet repo that generates it. Style-linting a vendored artifact in
+# the host turns the next re-vendoring into a red build nobody here can fix -- the incident that
+# rule records. The project's own hook logic lives in scripts/check-local-gates.sh, linted below.
+SHELL_FILES      := $(wildcard scripts/*.sh)
 DOCKER_RUN = docker run --rm -v "$(CURDIR):/work" -w /work \
 	--user "$(shell id -u):$(shell id -g)" \
 	-e HOME=/tmp -e npm_config_cache=/tmp/.npm -e CI \
@@ -24,7 +28,13 @@ DOCKER_RUN = docker run --rm -v "$(CURDIR):/work" -w /work \
 
 # --cleanDestinationDir matters: without it Hugo leaves stale files in public/ (a renamed
 # stylesheet keeps its predecessor), which makes output assertions report phantom problems.
-HUGO_BUILD = hugo --minify --gc --cleanDestinationDir
+#
+# This is the ONLY way the site is built, by tests and by the deploy alike (CON-COV-005: when
+# two code paths build the same artifact, test the one that ships). The deploy used to run its
+# own `hugo --minify --baseURL ...`, so every browser test exercised a build that never shipped.
+# BASE_URL is the one input the deploy supplies; empty means hugo.toml's.
+BASE_URL ?=
+HUGO_BUILD = hugo --minify --gc --cleanDestinationDir $(if $(BASE_URL),--baseURL "$(BASE_URL)",)
 
 # The shared constitution lives in another repository. CI only gets THIS one, so the rule IDs
 # are vendored (docs/constitution-ids.txt) and refreshed from the mirror on purpose, never read
@@ -100,6 +110,9 @@ spec-required: ## Check this branch records intent (spec or No-Spec:). BASE=main
 check-all: check lint visual ## Every gate, including visual regression (needs Docker)
 
 visual: build ## Visual regression against committed baselines (needs Docker)
+	$(MAKE) visual-built
+
+visual-built: ## Browser suite against the ALREADY-BUILT public/ — what the deploy runs on its artifact
 	$(DOCKER_RUN) bash -c 'npm ci --no-audit --no-fund >/dev/null && npx playwright test'
 
 visual-update: build ## Re-record baselines after an INTENTIONAL design change

@@ -76,14 +76,18 @@ jobs:
           HUGO_ENVIRONMENT: production
           # The worker's cache is named after this commit (FLEET.md, PWA standard).
           HUGO_BUILD_COMMIT: ${{ github.sha }}
-        run: |
-          hugo \
-            --minify \
-            --baseURL "${{ steps.pages.outputs.base_url }}/"
+        # The same command every test path uses (CON-COV-005). This step used to run its own
+        # `hugo --minify --baseURL ...`, so the browser suite only ever exercised a build that
+        # never shipped.
+        run: make build BASE_URL="${{ steps.pages.outputs.base_url }}/"
       # The build succeeded -- but Hugo answers a missing resource with a silent
       # fallback, so success proves little. Assert on what is about to ship.
       - name: Assert on the built site
         run: python3 scripts/check-output.py public
+      # And drive a browser over that same artifact before it is uploaded: screenshots,
+      # accessibility, the lightbox. Pull requests prove the change; this proves the bytes.
+      - name: Browser suite on the artifact about to ship
+        run: make visual-built
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:

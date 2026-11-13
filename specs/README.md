@@ -20,7 +20,8 @@ below.
 | [011](./011-larger-artwork/) | Show the paintings larger on their own page | Implemented | PR #28 |
 | [012](./012-citation-guard/) | Guard the constitution citations against rot | Implemented | PR #29 |
 | [014](./014-wider-testing/) | Accessibility, responsive and journey tests; lint the gates | Implemented | PR #31 |
-| [016](./016-lightbox/) | Make the lightbox work | In review | this PR |
+| [016](./016-lightbox/) | Make the lightbox work | Implemented | PR #33, caption fix #34 |
+| [019](./019-constitution-audit/) | Meet the 22 rules the constitution gained | In review | this PR |
 
 **Two numbering notes, recorded rather than tidied away:**
 
@@ -28,6 +29,8 @@ below.
   deferred behind `006`; by the time it was written the branch had become `011`, and renumbering
   shipped specs to close a gap would break every citation pointing at them. The gap is an artefact
   of planning order, not a missing document.
+- **No `017` or `018`**: both were branch names for changes that needed no new spec — `017` was
+  the caption fix, recorded as a correction inside `016`, and `018` a vendored-data refresh.
 - **There is no `015` either**, for the same reason as `013`: it was a branch name for a
   docs-only change (PR #32, recording one transferable lesson).
 - **There is no `013`.** It was the branch name for a docs-only change (PR #30: the artist's
