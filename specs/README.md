@@ -24,7 +24,7 @@ below.
 | [019](./019-constitution-audit/) | Meet the 22 rules the constitution gained | Implemented | PR #39 |
 | [020](./020-strict-style-src/) | A strict style policy | Implemented | PR #41 |
 | [022](./022-spec-status/) | A spec says whether it shipped | Implemented | PR #43 |
-| [023](./023-structured-data/) | Artwork structured data | In review | this PR |
+| [023](./023-structured-data/) | Artwork structured data | Implemented | PR #44 |
 
 **Two numbering notes, recorded rather than tidied away:**
 

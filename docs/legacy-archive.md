@@ -113,3 +113,24 @@ git fetch --unshallow            # or: git fetch --depth=1 origin tag legacy-arc
 
 Anything restored this way is deliberately untracked-by-intent — don't commit it back onto
 `main`, or the checkout cost returns.
+
+## Why the history was not rewritten (decision, 2026-11-14)
+
+The pack is still **561 MB**, almost all of it this archive. Rewriting history would reclaim it,
+and was considered and **declined**:
+
+- `CON-PROC-010` (adopted 2026-11-07, raised from this very archive) says history is additive:
+  removing something leaves a reference that still resolves, and rewriting published history costs
+  every existing clone. The archive's whole design — a tag, a browsable link, restore commands —
+  depends on the commits staying reachable.
+- The cost that mattered is gone: the CI checkout fell from 1,497 MB to 118 MB when the archive
+  left the working tree. (The security job still fetches full history, deliberately — the secret
+  scan has to see every commit.)
+- The one case where the rule says rewriting is *correct* is security remediation. Incident #10
+  (a WordPress database dump with a password hash and ~1,250 email-shaped strings inside the
+  `.wpress` file) is exactly that case — and the owner decided on 2026-09-20 to **accept the risk
+  and rotate the password** rather than purge. That decision stands until the owner revisits it;
+  if they do, a purge is the rule-sanctioned route, and the tag above would need re-pointing.
+
+So: not an oversight, and not irreversible either way — recorded so the next person does not have
+to rediscover the trade-off.
