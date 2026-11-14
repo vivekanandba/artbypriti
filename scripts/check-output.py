@@ -12,9 +12,11 @@ Usage:  python3 scripts/check-output.py [built_dir] [--content content_dir]
 Exit:   0 = clean (warnings allowed), 1 = errors found
 """
 
+import json
 import os
 import re
 import sys
+import urllib.parse
 from urllib.parse import urlparse, unquote
 
 # Principle IV: the deployed site stays under 40MB. It is ~28MB today.
@@ -43,6 +45,60 @@ def artworks_from_content(content_dir):
         m = re.search(r"^dimensions:[ \t]*(.*)$", fm, re.MULTILINE)
         out[name] = bool(m and m.group(1).strip())
     return out
+
+
+JSONLD_RE = re.compile(
+    r"""<script\b[^>]*\btype=(?:"application/ld\+json"|'application/ld\+json'|application/ld\+json)[^>]*>(.*?)</script>""",
+    re.S | re.I,
+)
+
+
+def check_artwork_structured_data(built, artworks):
+    """Every artwork page describes itself as a schema.org VisualArtwork (spec 023).
+
+    Structured data fails silently in the worst way: a broken block is simply ignored by search
+    engines, and nothing on the page looks different. So it is parsed here, not grepped for, and
+    held to the decisions the template records -- including the facts it must NOT state.
+    """
+    problems, checked = [], 0
+    for slug in sorted(artworks):
+        page = os.path.join(built, slug, "index.html")
+        if not os.path.isfile(page):
+            continue  # check_artwork_pages reports a missing page
+        blocks = JSONLD_RE.findall(open(page, encoding="utf-8", errors="replace").read())
+        if len(blocks) != 1:
+            problems.append(f"{slug}: {len(blocks)} JSON-LD block(s), expected exactly 1")
+            continue
+        try:
+            data = json.loads(blocks[0])
+        except ValueError as e:
+            problems.append(f"{slug}: JSON-LD does not parse ({e})")
+            continue
+        checked += 1
+        if data.get("@type") != "VisualArtwork":
+            problems.append(f"{slug}: @type is {data.get('@type')!r}, not VisualArtwork")
+        if not str(data.get("name", "")).strip():
+            problems.append(f"{slug}: no name")
+        if not str((data.get("creator") or {}).get("name", "")).strip():
+            problems.append(f"{slug}: no creator name — params.author.name is the source")
+        # CON-DATA-006: front-matter dates are post dates from the WordPress migration, not when
+        # the painting was made. Stating one as dateCreated would publish an unknown as a fact.
+        if "dateCreated" in data:
+            problems.append(f"{slug}: dateCreated is present, but this site does not know it")
+        image = str(data.get("image", ""))
+        path = urllib.parse.urlparse(image).path.lstrip("/")
+        if "_hu_" not in path:
+            problems.append(f"{slug}: image {image!r} is not a derived variant")
+        elif not os.path.isfile(os.path.join(built, path)):
+            problems.append(f"{slug}: image {image!r} is not in the built site")
+
+    if problems:
+        for p in problems[:5]:
+            errors.append(f"artwork structured data: {p}")
+        if len(problems) > 5:
+            errors.append(f"artwork structured data: …and {len(problems) - 5} more")
+    else:
+        notes.append(f"{checked} artwork page(s) carry valid VisualArtwork structured data")
 
 
 def check_no_masters(built):
@@ -297,6 +353,27 @@ def check_no_upscaling(built, content_dir="content"):
     notes.append(f"{checked} displayed images checked against their slot width")
 
 
+# Per the HTML standard, a <script> runs as code when its type is absent or empty, a JavaScript
+# MIME type, or "module". Any other type makes it a DATA BLOCK, which the browser never executes
+# and so CSP's script-src never blocks. Listed exactly, rather than "anything with a type
+# attribute is fine": `type=text/javascript` is still inline code and must still fail.
+JS_SCRIPT_TYPES = {
+    "", "module", "text/javascript", "application/javascript", "application/ecmascript",
+    "text/ecmascript", "application/x-javascript", "application/x-ecmascript",
+    "text/x-javascript", "text/x-ecmascript", "text/jscript", "text/livescript",
+    "text/javascript1.0", "text/javascript1.1", "text/javascript1.2", "text/javascript1.3",
+    "text/javascript1.4", "text/javascript1.5",
+}
+
+
+def is_executable_script(tag):
+    m = re.search(r"""\btype=(?:"([^"]*)"|'([^']*)'|([^\s>]*))""", tag, re.I)
+    if not m:
+        return True
+    value = next(g for g in m.groups() if g is not None)
+    return value.split(";")[0].strip().lower() in JS_SCRIPT_TYPES
+
+
 def check_csp_matches_the_markup(built):
     """A strict script-src and an inline <script> cannot both be right.
 
@@ -321,9 +398,11 @@ def check_csp_matches_the_markup(built):
             if not strict:
                 continue
             policed += 1
-            # An inline block is <script> with no src= before the closing bracket.
+            # An inline block is an EXECUTABLE <script> with no src= before the closing bracket.
+            # A data block (application/ld+json, spec 023) is never run, so script-src does not
+            # govern it; is_executable_script draws that line exactly where HTML does.
             for tag in re.findall(r"<script\b[^>]*>", html):
-                if "src=" not in tag:
+                if "src=" not in tag and is_executable_script(tag):
                     offenders.append(os.path.relpath(os.path.join(dp, fn), built))
                     break
 
@@ -528,6 +607,7 @@ def main():
     check_no_masters(built)
     check_payload(built)
     check_artwork_pages(built, artworks)
+    check_artwork_structured_data(built, artworks)
     check_no_upscaling(built, content)
     check_artwork_fills_its_column(built, content)
     check_csp_matches_the_markup(built)

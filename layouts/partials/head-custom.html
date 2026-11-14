@@ -42,3 +42,7 @@
 {{- $worker := resources.Get "sw.js" | resources.ExecuteAsTemplate "sw.js" (dict "id" $buildID) -}}
 {{ $swRegister := resources.Get "js/sw-register.js" | fingerprint }}
 <script src="{{ $swRegister.RelPermalink }}" data-sw-url="{{ $worker.RelPermalink }}" defer></script>
+
+{{/* Structured data for artwork pages only: a page is an artwork when it has a category (spec 023).
+     About and Request have none. */}}
+{{ if and .IsPage .Params.categories }}{{ partial "artwork-jsonld.html" . }}{{ end }}

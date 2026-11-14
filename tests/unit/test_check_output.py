@@ -320,8 +320,11 @@ class TestMain:
     def test_clean_site_returns_zero(self, co, site, content):
         content("olive", image="painting.jpg")
         site.add_variant("olive/p_hu_1.jpg", 600)
+        # A clean artwork page now carries its structured data too (spec 023).
+        jsonld = ('<script type=application/ld+json>{"@type":"VisualArtwork","name":"Olive",'
+                  '"creator":{"name":"Priti Ghatlia"},"image":"https://x.test/olive/p_hu_1.jpg"}</script>')
         site.add_page("olive/index.html",
-                      '<img data-src=/olive/p_hu_1.jpg><div class=dimensions>(5 cm X 5 cm)</div>')
+                      jsonld + '<img data-src=/olive/p_hu_1.jpg><div class=dimensions>(5 cm X 5 cm)</div>')
         assert self._run(co, site.root, content.root) == 0
 
     def test_missing_built_dir_returns_one(self, co, tmp_path, content, capsys):
