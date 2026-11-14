@@ -1,0 +1,52 @@
+{{/*
+  schema.org VisualArtwork for an artwork page, as JSON-LD (spec 023).
+
+  Until now the only structured data on this site was a schema.org `creator` block in the LIST
+  branch of gallery.html -- which never renders, so `params.author` in hugo.toml was inert and
+  nothing told a search engine who made these paintings.
+
+  Only facts the site already records, and only where they mean what the field means
+  (CON-DATA-006: never fabricate domain content):
+
+    name         the page title
+    creator      params.author.name -- the artist, as the site already states it
+    image        the 1600px lightbox variant, never a full-resolution master (those are not
+                 published at all; spec 000)
+    artMedium    the category, which IS the medium on this site ("Oil on Canvas") -- except
+                 "General", which is not a medium and is omitted rather than passed off as one
+    description  the artist's own description, when there is one
+
+  Deliberately absent:
+    dateCreated  front-matter dates are when the page was posted (they arrived from the WordPress
+                 migration), not when the painting was made. Publishing them as a creation date
+                 would turn an unknown into a false fact.
+    width/height the dimensions are the artist's free text ("(36 inch X 36 inch)", "(12"
+                 Diameter)"); parsing them into numbers is inference, and two are in inches on
+                 an otherwise metric site, pending her answer (docs/artist-requests.md).
+
+  `jsonify` escapes <, > and & as < etc., so no title can close the script element. The
+  block is a data block, not code: browsers do not execute application/ld+json, so it sits
+  under script-src 'self' without a violation -- asserted in a browser by tests/visual/csp.spec.js.
+*/}}
+{{ $images := where (.Resources.ByType "image") "Params.hidden" "ne" true }}
+{{ with index $images 0 }}
+  {{ $full := .Filter (slice images.AutoOrient (images.Process "fit 1600x1600")) }}
+  {{ $data := dict
+    "@context" "https://schema.org"
+    "@type" "VisualArtwork"
+    "name" $.Title
+    "url" $.Permalink
+    "image" $full.Permalink
+    "creator" (dict "@type" "Person" "name" site.Params.author.name)
+  }}
+  {{ with $.Params.categories }}
+    {{ $medium := index . 0 }}
+    {{ if ne (lower $medium) "general" }}
+      {{ $data = merge $data (dict "artMedium" $medium) }}
+    {{ end }}
+  {{ end }}
+  {{ with trim ($.Params.description | default "") " " }}
+    {{ $data = merge $data (dict "description" .) }}
+  {{ end }}
+  <script type="application/ld+json">{{ $data | jsonify | safeJS }}</script>
+{{ end }}

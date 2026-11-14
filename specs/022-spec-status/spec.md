@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-13
 
-**Status**: Draft
+**Status**: Implemented — PR #43
 
 **Input**: A known disagreement recorded in `specs/README.md` since spec 011: shipped specs still
 saying `Status: Draft` in their own header.
