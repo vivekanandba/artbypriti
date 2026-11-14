@@ -17,4 +17,4 @@
 - [x] **T006** 20 unit tests in `tests/unit/test_structured_data.py`; the existing "clean site"
   fixture gained a block, since a clean artwork page now needs one.
 - [x] **T007** Browser CSP suite run on the build: no violation from the JSON-LD.
-- [ ] **T008** After deploy: confirm the live artwork pages carry the block.
+- [x] **T008** Verified live after deploy: sampled artwork pages carry a valid VisualArtwork crediting Priti Ghatlia, none states a dateCreated, the "General" painting has no medium, and About carries none.
